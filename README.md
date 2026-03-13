@@ -53,7 +53,7 @@ Search: [`SenseCap M1` on eBay ($30-60)](https://www.ebay.com/sch/i.html?_nkw=Se
 
 <img src="docs/sensecap-m1.png" width="360" alt="SenseCap M1 with WM1303 concentrator">
 
-Remove the 4 bottom screws to access the SD card. Flash with Raspberry Pi OS 64-bit and run the install script -- the setup wizard auto-detects the hardware. USB-C power connects to the carrier board, not the Pi directly.
+Remove the 2 screws on the back panel (the side without the Ethernet/antenna ports) to access the SD card -- it may be held in place by kapton tape. Flash with Raspberry Pi OS 64-bit and run the install script -- the setup wizard auto-detects the hardware. USB-C power connects to the carrier board, not the Pi directly.
 
 ### Option C: Build your own (~$85)
 

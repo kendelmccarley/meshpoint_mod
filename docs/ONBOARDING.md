@@ -35,7 +35,7 @@ You need a Raspberry Pi 4 with an SX1302 or SX1303 LoRa concentrator. The easies
 | **RAK Hotspot V2** (RAK7248) | RAK2287 (SX1302) | $30-70 on eBay | Pi 4 + metal enclosure + antenna |
 | **SenseCap M1** | WM1303 (SX1303) | $30-60 on eBay | Pi 4 + metal enclosure + antenna, may include 64GB SD card |
 
-Both require removing 4 bottom screws to access the SD card for flashing.
+RAK Hotspot V2: remove 4 bottom screws to access the SD card. SenseCap M1: remove 2 screws on the back panel (opposite the Ethernet/antenna ports) -- the SD card may be held down with kapton tape.
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ Both require removing 4 bottom screws to access the SD card for flashing.
 
 6. Insert the SD card into the Raspberry Pi. Do **not** power it on yet.
 
-> **Enclosed units (RAK Hotspot V2, SenseCap M1):** Remove the 4 bottom screws to access the SD card. After flashing, re-insert the card and reassemble.
+> **Enclosed units:** RAK Hotspot V2 -- remove 4 bottom screws. SenseCap M1 -- remove 2 screws on the back panel (opposite the Ethernet/antenna ports); SD card may be taped down with kapton tape. After flashing, re-insert the card and reassemble.
 
 ### Step 2: Assemble Hardware
 
