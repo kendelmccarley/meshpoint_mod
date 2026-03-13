@@ -1,16 +1,28 @@
 """Auto-detect Mesh Point hardware on a Raspberry Pi.
 
-Probes for SPI concentrator devices, serial Meshtastic radios,
-and GPS UART to help the setup wizard configure the right sources.
+Probes for SPI concentrator devices, I2C carrier board signatures,
+serial Meshtastic radios, and GPS UART to help the setup wizard
+configure the right sources.
 """
 
 from __future__ import annotations
 
 import glob
 import os
+import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Optional
+
+CARRIER_SENSECAP_M1 = "sensecap_m1"
+CARRIER_RAK = "rak"
+CARRIER_UNKNOWN = "unknown"
+
+_HARDWARE_DESCRIPTIONS = {
+    CARRIER_SENSECAP_M1: "SenseCap M1 (WM1303)",
+    CARRIER_RAK: "RAK2287 + Raspberry Pi 4",
+    CARRIER_UNKNOWN: "SX1302/SX1303 + Raspberry Pi 4",
+}
 
 
 @dataclass
@@ -31,6 +43,8 @@ class HardwareReport:
     gps: GpsProbeResult = field(default_factory=GpsProbeResult)
     concentrator_available: bool = False
     libloragw_installed: bool = False
+    carrier_type: str = CARRIER_UNKNOWN
+    hardware_description: str = _HARDWARE_DESCRIPTIONS[CARRIER_UNKNOWN]
 
 
 def detect_all() -> HardwareReport:
@@ -42,13 +56,37 @@ def detect_all() -> HardwareReport:
     report.concentrator_available = (
         len(report.spi_devices) > 0 and report.libloragw_installed
     )
+    report.carrier_type = detect_carrier_board()
+    report.hardware_description = _HARDWARE_DESCRIPTIONS.get(
+        report.carrier_type, _HARDWARE_DESCRIPTIONS[CARRIER_UNKNOWN]
+    )
     report.gps = probe_gps()
     return report
 
 
 def detect_spi_devices() -> list[str]:
-    """Find SPI device nodes that could be a RAK2287 concentrator."""
+    """Find SPI device nodes that could be an SX1302/SX1303 concentrator."""
     return sorted(glob.glob("/dev/spidev0.*"))
+
+
+def detect_carrier_board() -> str:
+    """Identify the carrier board by probing I2C for signature chips.
+
+    SenseCap M1 has an ATECC608 crypto chip at I2C address 0x60 and a
+    temperature sensor at 0x39.  RAK Pi HATs have neither.
+    """
+    try:
+        result = subprocess.run(
+            ["i2cdetect", "-y", "1"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return CARRIER_UNKNOWN
+        if " 60 " in result.stdout or " 60\n" in result.stdout:
+            return CARRIER_SENSECAP_M1
+        return CARRIER_RAK
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return CARRIER_UNKNOWN
 
 
 def detect_serial_ports() -> list[str]:
@@ -158,6 +196,7 @@ def print_report(report: HardwareReport) -> None:
 
     print(f"  libloragw.so:    {'installed' if report.libloragw_installed else 'NOT found'}")
     print(f"  Concentrator:    {'ready' if report.concentrator_available else 'not available'}")
+    print(f"  Carrier board:   {report.hardware_description}")
 
     if report.serial_ports:
         print(f"  Serial ports:    {', '.join(report.serial_ports)}")

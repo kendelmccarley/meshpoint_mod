@@ -8,23 +8,34 @@ Step-by-step instructions for building and deploying a Mesh Point -- from an emp
 
 A **Mesh Point** is an edge device that:
 
-- Listens to LoRa traffic from Meshtastic and Meshcore networks using a RAK2287 concentrator
+- Listens to LoRa traffic from Meshtastic and Meshcore networks using an SX1302/SX1303 concentrator
 - Decodes, stores, and visualizes packets on a local dashboard
 - Optionally relays packets back onto the mesh via a separate SX1262 radio
 - Ships data upstream to the Mesh Radar cloud platform for regional mesh intelligence
 
 ## Hardware Requirements
 
+You need a Raspberry Pi 4 with an SX1302 or SX1303 LoRa concentrator. The easiest paths are buying a pre-built unit (RAK Hotspot V2 or SenseCap M1) and reflashing the SD card.
+
 | Component | Purpose | Notes |
 |-----------|---------|-------|
 | **Raspberry Pi 4** (1-2GB RAM) | Host computer | 1GB works, 2GB recommended for future updates |
-| **RAK2287 LoRa Concentrator** | Multi-channel LoRa receiver | SX1302 chipset; some HATs include ZOE-M8Q GPS |
-| **RAK Pi HAT** | Mounts the RAK2287 to the Pi | Provides SPI + UART breakout |
+| **SX1302/SX1303 Concentrator** | Multi-channel LoRa receiver | RAK2287 (SX1302) or Seeed WM1303 (SX1303) |
+| **Carrier board / Pi HAT** | Mounts the concentrator to the Pi | RAK Pi HAT, SenseCap M1 carrier, or WM1302 Pi HAT |
 | **microSD card** (32GB) | Boot drive | Class 10 or better |
 | **USB-C power supply** (5V 3A) | Power | Official Pi PSU recommended |
 | **LoRa antenna** (906 MHz) | Reception | 10 dBi gain recommended for US915 band |
 | **Ethernet cable or WiFi** | Network connectivity | Needed for cloud uplink |
 | **Optional: SX1262 radio** | Relay transmitter | T-Beam, Heltec V3, or RAK4631 running Meshtastic firmware |
+
+### Supported Pre-Built Units
+
+| Unit | Concentrator | Price Range | Notes |
+|------|-------------|-------------|-------|
+| **RAK Hotspot V2** (RAK7248) | RAK2287 (SX1302) | $30-70 on eBay | Pi 4 + metal enclosure + antenna |
+| **SenseCap M1** | WM1303 (SX1303) | $30-60 on eBay | Pi 4 + metal enclosure + antenna, may include 64GB SD card |
+
+Both require removing 4 bottom screws to access the SD card for flashing.
 
 ## Prerequisites
 
@@ -56,12 +67,18 @@ A **Mesh Point** is an edge device that:
 
 6. Insert the SD card into the Raspberry Pi. Do **not** power it on yet.
 
+> **Enclosed units (RAK Hotspot V2, SenseCap M1):** Remove the 4 bottom screws to access the SD card. After flashing, re-insert the card and reassemble.
+
 ### Step 2: Assemble Hardware
 
-1. Seat the RAK2287 module into the mPCIe slot on the RAK Pi HAT.
-2. Connect the LoRa antenna to the RAK2287's antenna port. **Never power the concentrator without an antenna connected** -- this can damage the radio.
-3. If your HAT has a GPS module and you have a GPS antenna, connect it to the u.FL connector.
-4. Mount the HAT onto the Raspberry Pi's GPIO header.
+**If using a pre-built unit (RAK Hotspot V2 or SenseCap M1):** The concentrator is already seated. Just connect the LoRa antenna to the SMA connector and insert the flashed SD card. For SenseCap M1, USB-C power plugs into the carrier board (not the Pi's own USB-C port).
+
+**If building from parts:**
+
+1. Seat the concentrator module (RAK2287 or WM1303) into the mPCIe slot on the carrier board.
+2. Connect the LoRa antenna to the SMA port. **Never power the concentrator without an antenna connected** -- this can damage the radio.
+3. If your carrier board has a GPS module and you have a GPS antenna, connect it to the u.FL connector.
+4. Mount the carrier board onto the Raspberry Pi's GPIO header.
 5. If using an SX1262 relay radio, connect it to one of the Pi's USB ports.
 6. Connect Ethernet (if not using WiFi).
 7. Connect the power supply.
@@ -127,7 +144,7 @@ meshpoint setup
 
 The wizard walks you through 7 steps:
 
-1. **Hardware Detection** -- probes for RAK2287, GPS, serial radios
+1. **Hardware Detection** -- probes for concentrator, carrier board, GPS, serial radios
 2. **Capture Source** -- auto-selects concentrator, serial, or mock
 3. **API Key** -- paste your Mesh Radar API key
 4. **Device Name** -- give it a recognizable name (e.g. "Mesh Point Rooftop")
@@ -159,7 +176,7 @@ If you received a pre-built Mesh Point, all the software is already configured. 
 
 ### What's in the Box
 
-- Raspberry Pi 4 with RAK2287 LoRa HAT mounted
+- Raspberry Pi 4 with LoRa concentrator HAT mounted (RAK2287 or WM1303)
 - LoRa antenna
 - USB-C power supply
 - microSD card (already inserted and configured)
@@ -247,7 +264,7 @@ Common issues:
 
 ### No LoRa packets captured
 
-- Verify the RAK2287 is detected: `ls /dev/spidev0.*`
+- Verify the concentrator is detected: `ls /dev/spidev0.*`
 - Verify libloragw is installed: `ls /usr/local/lib/libloragw.so`
 - Check that there are Meshtastic/Meshcore devices transmitting in your area
 - Verify the antenna is connected
@@ -272,7 +289,7 @@ Common issues:
 ```
    Your Mesh Point (Raspberry Pi)
    ┌──────────────────────────────┐
-   │  RAK2287 (SPI)               │
+   │  SX1302/SX1303 (SPI)          │
    │    └─ Multi-channel RX       │
    │  SX1262 Radio (USB serial)   │
    │    └─ Relay TX               │

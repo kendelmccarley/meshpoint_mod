@@ -68,13 +68,17 @@ def _step_capture_source(config: dict, report: HardwareReport) -> None:
     print("  [2/7] Capture source")
 
     if report.concentrator_available:
-        print(f"        RAK2287 concentrator detected on {report.spi_devices[0]}")
+        print(f"        Concentrator detected on {report.spi_devices[0]}")
+        print(f"        Hardware: {report.hardware_description}")
         source = "concentrator"
         spi_device = report.spi_devices[0]
         config["capture"] = {
             "sources": [source],
             "concentrator_spi_device": spi_device,
         }
+        config.setdefault("device", {})["hardware_description"] = (
+            report.hardware_description
+        )
     elif report.serial_ports:
         port = _choose_from_list(
             "Select capture serial port:", report.serial_ports
@@ -155,7 +159,9 @@ def _step_location(config: dict, report: HardwareReport) -> None:
             return
 
     print("        Enter coordinates manually (used for map placement).")
-    print("        Tip: right-click on Google Maps to copy lat/lng.")
+    print("        Tip: in Google Maps, right-click any location and click")
+    print("        the coordinates at the top of the menu to copy them.")
+    print("        They copy in decimal format (e.g. 43.8891, -72.2219).")
     print()
 
     lat = _prompt_float("Latitude (e.g. 42.3601):")

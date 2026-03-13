@@ -18,6 +18,7 @@ def generate_local_config(
     latitude: float,
     longitude: float,
     wifi_ssid: str = "",
+    hardware_description: str = "RAK2287 + Raspberry Pi 4",
 ) -> dict:
     """Build a local.yaml config dict for a provisioned device."""
     return {
@@ -34,7 +35,7 @@ def generate_local_config(
             "device_name": device_name,
             "latitude": latitude,
             "longitude": longitude,
-            "hardware_description": "RAK2287 + Raspberry Pi 4",
+            "hardware_description": hardware_description,
         },
     }
 
