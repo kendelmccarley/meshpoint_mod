@@ -72,8 +72,10 @@ def detect_spi_devices() -> list[str]:
 def detect_carrier_board() -> str:
     """Identify the carrier board by probing I2C for signature chips.
 
-    SenseCap M1 has an ATECC608 crypto chip at I2C address 0x60 and a
-    temperature sensor at 0x39.  RAK Pi HATs have neither.
+    SenseCap M1 has both an ATECC608 crypto chip at 0x60 AND a temperature
+    sensor at 0x39.  RAK Pi HATs have an EEPROM at 0x50 (and sometimes
+    0x60) but no temperature sensor.  Requiring both addresses avoids
+    false positives.
     """
     try:
         result = subprocess.run(
@@ -82,7 +84,9 @@ def detect_carrier_board() -> str:
         )
         if result.returncode != 0:
             return CARRIER_UNKNOWN
-        if " 60 " in result.stdout or " 60\n" in result.stdout:
+        has_atecc = " 60 " in result.stdout or " 60\n" in result.stdout
+        has_temp = " 39 " in result.stdout or " 39\n" in result.stdout
+        if has_atecc and has_temp:
             return CARRIER_SENSECAP_M1
         return CARRIER_RAK
     except (FileNotFoundError, subprocess.TimeoutExpired):
