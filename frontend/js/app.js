@@ -42,7 +42,11 @@ async function _loadInitial(nodeMap, nodeList, packetFeed) {
         _setText('stat-nodes', `${nodes.length} nodes`);
 
         const packets = packetsData.packets || packetsData || [];
-        const sorted = packets.sort((a, b) => (a.rx_time || 0) - (b.rx_time || 0));
+        const sorted = packets.sort((a, b) => {
+            const aTime = a.rx_time || new Date(a.timestamp || 0).getTime() / 1000;
+            const bTime = b.rx_time || new Date(b.timestamp || 0).getTime() / 1000;
+            return aTime - bTime;
+        });
         sorted.forEach(pkt => packetFeed.addPacket(pkt));
         _totalPackets = sorted.length;
         _setText('stat-packets', `${_totalPackets} packets`);
