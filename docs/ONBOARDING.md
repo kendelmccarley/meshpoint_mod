@@ -261,6 +261,7 @@ Common issues:
 - **"No module named 'src'"**: Check that `/opt/meshpoint` contains the source code.
 - **"Permission denied: /dev/spidev0.0"**: Run `sudo usermod -a -G spi meshpoint`
 - **"No module named 'psutil'"**: Run `sudo /opt/meshpoint/venv/bin/pip install psutil`
+- **"no GPIO tool found (pinctrl or gpioset)"**: This means the concentrator reset script can't toggle GPIO. Raspberry Pi OS Lite (64-bit) includes `pinctrl` by default. If you're on a non-standard image, install `gpiod`: `sudo apt install -y gpiod`
 
 ### No LoRa packets captured
 
