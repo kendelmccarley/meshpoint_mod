@@ -195,6 +195,19 @@ sudo meshpoint setup # re-run config wizard
 
 ---
 
+## Changelog
+
+### March 2026
+
+- **Real-time packet streaming** — Cloud dashboard receives packets instantly via WebSocket. Live animated lines trace packets from source nodes to your Meshpoint on the map as they arrive.
+- **Cloud map overhaul** — Marker clustering, signal heatmap layer, topology lines from neighborinfo data, and a live Recent Packets ticker panel.
+- **SenseCap M1 support** — Auto-detects SenseCap M1 carrier board via I2C probe during setup. Flash an SD card and go.
+- **14 Meshtastic portnums decoded** — TEXT, POSITION, NODEINFO, TELEMETRY, ROUTING, ADMIN, WAYPOINT, DETECTION_SENSOR, PAXCOUNTER, STORE_FORWARD, RANGE_TEST, TRACEROUTE, NEIGHBORINFO, MAP_REPORT — plus encrypted packet tracking.
+- **Device role extraction** — Node table shows CLIENT, ROUTER, REPEATER, TRACKER, SENSOR, and other roles from NodeInfo packets.
+- **Smart relay engine** — Deduplication, token-bucket rate limiting, hop/type/signal filtering, independent SX1262 TX path.
+
+---
+
 ## Community
 
 - **Discord:** [discord.gg/Cfuc6Cp4wM](https://discord.gg/Cfuc6Cp4wM)
