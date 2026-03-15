@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function _loadInitial(nodeMap, nodeList, packetFeed) {
     try {
         const [deviceRes, nodesRes, packetsRes] = await Promise.all([
-            fetch('/api/device/status'),
+            fetch('/api/device'),
             fetch('/api/nodes'),
             fetch('/api/packets?limit=50'),
         ]);
