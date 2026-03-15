@@ -249,6 +249,14 @@ sudo /opt/meshpoint/venv/bin/pip install -r requirements.txt
 sudo systemctl restart meshpoint
 ```
 
+After restarting the service, the SX1302 concentrator may fail to initialize with `lgw_start() failed` or `Failed to set SX1250_0 in STANDBY_RC mode`. This happens when the SPI bus is still locked from the previous session. If you see this error:
+
+1. Try restarting the service again: `sudo systemctl restart meshpoint`
+2. If it still fails, **unplug the device for 10 seconds** and plug it back in. A full power cycle clears the SPI bus.
+3. After plugging back in, wait 30-60 seconds for the Pi to boot and the service to start automatically.
+
+This is a known hardware behavior of the SX1302/SX1250 radio — software resets don't always fully release the SPI bus.
+
 ---
 
 ## Troubleshooting
@@ -264,6 +272,14 @@ Common issues:
 - **"Permission denied: /dev/spidev0.0"**: Run `sudo usermod -a -G spi meshpoint`
 - **"No module named 'psutil'"**: Run `sudo /opt/meshpoint/venv/bin/pip install psutil`
 - **"no GPIO tool found (pinctrl or gpioset)"**: This means the concentrator reset script can't toggle GPIO. Raspberry Pi OS Lite (64-bit) includes `pinctrl` by default. If you're on a non-standard image, install `gpiod`: `sudo apt install -y gpiod`
+
+### Concentrator fails to start after update
+
+If logs show `lgw_start() failed` or `Failed to set SX1250_0 in STANDBY_RC mode`:
+
+1. Try `sudo systemctl restart meshpoint` again
+2. If that doesn't work, unplug the device for 10 seconds and plug back in
+3. The SPI bus sometimes latches after an unclean shutdown -- only a full power cycle clears it
 
 ### No LoRa packets captured
 
