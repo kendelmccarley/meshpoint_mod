@@ -139,8 +139,10 @@ Wait 30-60 seconds, then SSH back in.
 ### Step 8: Run the Setup Wizard
 
 ```bash
-meshpoint setup
+sudo meshpoint setup
 ```
+
+> **Note:** `sudo` is required — the wizard writes to `/opt/meshpoint/config/local.yaml` which is owned by root.
 
 The wizard walks you through 7 steps:
 
@@ -226,7 +228,7 @@ The device also sends data to the Mesh Radar cloud platform. Your device operato
 | `meshpoint logs` | Tail the live service logs |
 | `meshpoint restart` | Restart the service (applies config changes) |
 | `meshpoint stop` | Stop the service |
-| `meshpoint setup` | Re-run the setup wizard (overwrites config) |
+| `sudo meshpoint setup` | Re-run the setup wizard (overwrites config) |
 | `meshpoint version` | Print firmware version |
 
 ### Editing Configuration
