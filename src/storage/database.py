@@ -83,8 +83,17 @@ class DatabaseManager:
         self._connection = await aiosqlite.connect(self._db_path)
         self._connection.row_factory = aiosqlite.Row
         await self._connection.executescript(SCHEMA_SQL)
+        await self._run_migrations()
         await self._connection.commit()
         logger.info("Database connected: %s", self._db_path)
+
+    async def _run_migrations(self) -> None:
+        cursor = await self._connection.execute("PRAGMA table_info(nodes)")
+        columns = {row[1] for row in await cursor.fetchall()}
+
+        if "role" not in columns:
+            await self._connection.execute("ALTER TABLE nodes ADD COLUMN role TEXT")
+            logger.info("Migration: added 'role' column to nodes table")
 
     async def disconnect(self) -> None:
         if self._connection:
