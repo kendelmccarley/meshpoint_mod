@@ -16,7 +16,9 @@ class SimplePacketFeed {
 
         const time = packet.rx_time
             ? new Date(packet.rx_time * 1000).toLocaleTimeString()
-            : new Date().toLocaleTimeString();
+            : packet.timestamp
+                ? new Date(packet.timestamp).toLocaleTimeString()
+                : new Date().toLocaleTimeString();
 
         const srcShort = packet.source_id
             ? `!${packet.source_id.substring(0, 8)}`
