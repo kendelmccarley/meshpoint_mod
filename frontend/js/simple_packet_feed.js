@@ -20,9 +20,7 @@ class SimplePacketFeed {
                 ? new Date(packet.timestamp).toLocaleTimeString()
                 : new Date().toLocaleTimeString();
 
-        const srcShort = packet.source_id
-            ? `!${packet.source_id.substring(0, 8)}`
-            : '--';
+        const srcShort = this._shortId(packet.source_id);
 
         const sig = packet.signal || {};
         const rawRssi = sig.rssi != null ? sig.rssi : packet.rssi;
@@ -34,17 +32,24 @@ class SimplePacketFeed {
         const protocol = packet.protocol || 'meshtastic';
         const details = this._summarize(packet);
 
+        const destShort = this._shortId(packet.destination_id);
+        const hops = packet.hop_start > 0
+            ? `${packet.hop_start - packet.hop_limit}/${packet.hop_start}`
+            : '--';
+
         const typeClass = `type-${type.replace(/[^a-zA-Z0-9_-]/g, '')}`;
         const protocolClass = `protocol-${protocol}`;
         const rssiClass = this._rssiClass(rssiVal);
 
         tr.innerHTML = `
             <td>${time}</td>
-            <td class="td-source">${srcShort}</td>
             <td class="${protocolClass}">${protocol}</td>
+            <td class="td-source">${srcShort}</td>
+            <td>${destShort}</td>
             <td class="${typeClass}">${type}</td>
             <td class="${rssiClass}">${rssi}</td>
             <td>${snr}</td>
+            <td>${hops}</td>
             <td class="packet-details-cell ${typeClass}">${this._esc(details)}</td>
         `;
 
@@ -74,7 +79,7 @@ class SimplePacketFeed {
         const detailTr = document.createElement('tr');
         detailTr.classList.add('packet-detail-row');
         const td = document.createElement('td');
-        td.colSpan = 7;
+        td.colSpan = 9;
 
 
         const payload = packet.decoded_payload;
@@ -120,6 +125,12 @@ class SimplePacketFeed {
         if (n >= -90) return 'rssi-good';
         if (n >= -110) return 'rssi-mid';
         return 'rssi-bad';
+    }
+
+    _shortId(id) {
+        if (!id) return '--';
+        if (id === 'ffffffff' || id === 'ffff') return 'BCAST';
+        return id.length > 6 ? `!${id.slice(-4)}` : id;
     }
 
     _esc(str) {
