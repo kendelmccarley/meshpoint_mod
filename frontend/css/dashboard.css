@@ -110,6 +110,20 @@ body {
     color: var(--text-muted);
 }
 
+.update-badge {
+    color: var(--accent-amber);
+    font-size: 1.1rem;
+    cursor: help;
+    animation: updatePulse 2s ease-in-out infinite;
+}
+
+.hidden { display: none !important; }
+
+@keyframes updatePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
 /* ---- Stat Cards ---- */
 .dashboard__stats {
     display: grid;

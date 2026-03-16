@@ -89,41 +89,29 @@ def execute_restart_service(_params: dict[str, Any]) -> dict[str, Any]:
 
 
 async def execute_apply_update(params: dict[str, Any]) -> dict[str, Any]:
-    """Pull a specific version from GitHub and apply it."""
-    target_version = params.get("version")
-    if not target_version:
-        return {"error": "Missing 'version' parameter"}
-
-    logger.warning("Remote update requested: target=%s current=%s", target_version, __version__)
+    """Pull latest code from GitHub and restart the service."""
+    logger.warning("Remote update requested (current=%s)", __version__)
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git", "fetch", "--tags", cwd=MESHPOINT_DIR,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            "sudo", "git", "pull", "origin", "main",
+            cwd=MESHPOINT_DIR,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        await proc.wait()
+        stdout, stderr = await proc.communicate()
+        pull_output = stdout.decode().strip()
+        if proc.returncode != 0:
+            return {"error": f"git pull failed: {stderr.decode().strip()}"}
 
         proc = await asyncio.create_subprocess_exec(
-            "git", "checkout", f"v{target_version}", cwd=MESHPOINT_DIR,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            "sudo", "/opt/meshpoint/venv/bin/pip",
+            "install", "-q", "-r", "/opt/meshpoint/requirements.txt",
+            cwd=MESHPOINT_DIR,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            return {"error": f"Checkout failed: {stderr.decode().strip()}"}
-
-        copy_dirs = ["src", "frontend", "config", "scripts"]
-        for dirname in copy_dirs:
-            src = Path(MESHPOINT_DIR) / dirname
-            if src.exists():
-                subprocess.run(
-                    ["sudo", "cp", "-r", str(src) + "/", f"/opt/meshpoint/{dirname}/"],
-                    check=True, timeout=30,
-                )
-
-        subprocess.run(
-            ["sudo", "pip", "install", "-r", "/opt/meshpoint/requirements.txt"],
-            capture_output=True, timeout=120,
-        )
+        await proc.communicate()
 
         subprocess.Popen(
             ["sudo", "systemctl", "restart", MESHPOINT_SERVICE],
@@ -131,9 +119,9 @@ async def execute_apply_update(params: dict[str, Any]) -> dict[str, Any]:
         )
 
         return {
-            "message": f"Update to v{target_version} applied, restarting",
+            "message": "Update applied, restarting",
             "previous_version": __version__,
-            "target_version": target_version,
+            "git_output": pull_output,
         }
     except Exception as exc:
         logger.exception("Update failed")

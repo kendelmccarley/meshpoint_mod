@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await _loadInitial(nodeMap, nodeList, packetFeed);
     await _updateStats();
+    _checkForUpdate();
 
     window.concentratorWS.on('packet', (packet) => {
         packetFeed.addPacket(packet);
@@ -23,6 +24,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         _refreshData(nodeMap, nodeList);
         _updateStats();
     }, 15_000);
+
+    setInterval(_checkForUpdate, 300_000);
 });
 
 async function _loadInitial(nodeMap, nodeList, packetFeed) {
@@ -127,6 +130,21 @@ function _formatUptime(totalSeconds) {
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
+}
+
+async function _checkForUpdate() {
+    try {
+        const res = await fetch('/api/device/update-check');
+        const data = await res.json();
+        const badge = document.getElementById('update-badge');
+        if (!badge) return;
+        if (data.update_available) {
+            badge.classList.remove('hidden');
+            badge.title = `Update available (local: ${data.local_sha}, remote: ${data.remote_sha})`;
+        } else {
+            badge.classList.add('hidden');
+        }
+    } catch (_) {}
 }
 
 function _setText(id, value) {
