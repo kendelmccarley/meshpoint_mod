@@ -35,7 +35,7 @@ You need a Raspberry Pi 4 with an SX1302 or SX1303 LoRa concentrator. The easies
 | **RAK Hotspot V2** (RAK7248) | RAK2287 (SX1302) | $30-70 on eBay | Pi 4 + metal enclosure + antenna |
 | **SenseCap M1** | WM1303 (SX1303) | $30-60 on eBay | Pi 4 + metal enclosure + antenna, may include 64GB SD card |
 
-> **RAK2287 vs SenseCap M1 — important difference for remote deployments:** The RAK2287's SPI bus can latch in a stuck state after a service restart. When this happens, the concentrator will not reinitialize and **a clean `sudo reboot` will not fix it** — only a full power unplug (10+ seconds) clears the SPI bus. The SenseCap M1 does not have this issue and handles service restarts cleanly. If you are deploying a Mesh Point in a location where you cannot physically access it (rooftop, remote site), the **SenseCap M1 is strongly recommended** as it can be updated and restarted remotely without risk.
+> **RAK2287 vs SenseCap M1 — important difference for remote deployments:** The RAK2287's SPI bus can latch in a stuck state after a service restart or unexpected power loss. When this happens, the concentrator will not reinitialize and **a clean `sudo reboot` will not fix it** — only a full power unplug (10+ seconds) clears the SPI bus. Repeated SPI latch events (from frequent power outages or hard shutdowns) can permanently damage the SX1250 radio front-end — the concentrator may start but silently fail to receive packets. The SenseCap M1 does not have this issue and handles service restarts and power loss cleanly. If you are deploying a Mesh Point in a location where you cannot physically access it (rooftop, remote site) or where power is unreliable, the **SenseCap M1 is strongly recommended**.
 
 RAK Hotspot V2: remove 4 bottom screws to access the SD card. SenseCap M1: remove 2 screws on the back panel (opposite the Ethernet/antenna ports) -- the SD card may be held down with kapton tape.
 
@@ -264,7 +264,7 @@ sudo systemctl restart meshpoint
 
 **SenseCap M1 units:** Service restarts work cleanly without any power cycling. The M1's WM1303 concentrator handles SPI stop/start gracefully. These units are safe for remote updates.
 
-**Important:** Never just yank the power cable while the Pi is running. The SD card has no write cache protection — pulling power during writes can corrupt files, the git repo, or the database. Always `sudo poweroff` first and wait for the LED to go dark.
+**Important:** Never just yank the power cable while the Pi is running. Hard power cuts cause two problems: (1) the SD card has no write cache protection — pulling power during writes can corrupt files, the git repo, or the database, and (2) on RAK2287 units, killing power while the SPI bus is active can latch the bus or damage the SX1250 radio. Repeated power loss events (storms, UPS failures, tripped breakers) can permanently degrade the concentrator's receive sensitivity. Always `sudo poweroff` first and wait for the LED to go dark. Consider a small UPS (e.g. PiSugar or USB battery with passthrough) for deployments where power is unreliable.
 
 ### Recovering from a Corrupted Install
 
@@ -337,6 +337,15 @@ sudo chmod 777 /opt/meshpoint/data
 sudo chmod 666 /opt/meshpoint/data/*.db
 sudo systemctl restart meshpoint
 ```
+
+### Concentrator starts but receives no packets
+
+If the logs show `SX1302 concentrator started` and `Sync word set to 0x2B` but the receive loop consistently reports `0 pkt this cycle`, the SX1250 radio's analog front-end may be damaged. This typically happens after:
+
+- Repeated power loss events (storms, breaker trips, yanked cables)
+- SPI bus latch events (the `lgw_start() failed` error, even if resolved by power cycling)
+
+The SX1250's digital SPI interface can recover while the RF receive path remains non-functional. To confirm: test a known-working Meshtastic device within a few meters. If still zero packets, the RAK2287 module needs replacement (~$50-60). The Pi and carrier board are unaffected.
 
 ### No LoRa packets captured
 
