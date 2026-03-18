@@ -1,6 +1,10 @@
-# Meshpoint
+<p align="center">
+  <img src="MP_logo.png" width="180" alt="Meshpoint Logo">
+</p>
 
-**Open-source LoRa packet intelligence for Meshtastic mesh networks.** Currently supports US915 only. Meshcore and additional regions (EU868, ANZ915) are in development.
+<h1 align="center">Meshpoint</h1>
+
+<p align="center"><strong>Open-source LoRa packet intelligence for Meshtastic mesh networks.</strong><br>Currently supports US915 only. Meshcore and additional regions (EU868, ANZ915) are in development.</p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
