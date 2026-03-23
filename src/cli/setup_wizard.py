@@ -235,16 +235,11 @@ def _write_config(config: dict) -> None:
 
 
 def _step_start_service() -> None:
-    """Offer to start or reboot depending on system state."""
-    if not _is_systemd():
-        print("  systemd not detected. Start manually with:")
-        print("    python -m uvicorn src.api.server:create_app --factory --host 0.0.0.0 --port 8080")
-        print()
-        return
+    """Prompt the user to reboot so all changes take effect."""
+    print("  A reboot is recommended to apply all changes.")
+    print()
 
-    if _reboot_recommended():
-        print("  A reboot is required for hardware changes to take effect.")
-        print()
+    if _is_systemd():
         if _confirm("Reboot now?", default_yes=True):
             print("  Rebooting...")
             import subprocess
@@ -252,37 +247,8 @@ def _step_start_service() -> None:
         else:
             print("  Run 'sudo reboot' when ready. The service starts")
             print("  automatically on boot.")
-        print()
-        print("  Setup complete!")
-        print()
-        return
-
-    if _confirm("Start the Mesh Point service now?", default_yes=True):
-        import subprocess
-
-        subprocess.run(
-            ["sudo", "systemctl", "start", "meshpoint"],
-            check=False,
-        )
-
-        import time
-        print("  Starting...")
-        time.sleep(3)
-
-        result = subprocess.run(
-            ["systemctl", "is-active", "meshpoint"],
-            capture_output=True, text=True,
-        )
-        if result.stdout.strip() == "active":
-            print("  Mesh Point is running!")
-            print()
-            print("  View the local dashboard at: http://localhost:8080")
-            print("  Check status anytime with:   meshpoint status")
-            print("  View logs with:               meshpoint logs")
-        else:
-            print("  Service may still be starting. Check with: meshpoint status")
     else:
-        print("  Start later with: sudo systemctl start meshpoint")
+        print("  Reboot the device to start the Mesh Point service.")
 
     print()
     print("  Setup complete!")
@@ -489,17 +455,3 @@ def _is_systemd() -> bool:
     return os.path.isdir("/run/systemd/system")
 
 
-def _reboot_recommended() -> bool:
-    """Detect if a reboot is needed for kernel/hardware changes.
-
-    Returns True when the meshpoint service has never successfully
-    started (first-time setup after install.sh).
-    """
-    import subprocess
-
-    result = subprocess.run(
-        ["systemctl", "show", "meshpoint", "--property=ActiveEnterTimestamp"],
-        capture_output=True, text=True,
-    )
-    timestamp = result.stdout.strip().split("=", 1)[-1].strip()
-    return not timestamp
