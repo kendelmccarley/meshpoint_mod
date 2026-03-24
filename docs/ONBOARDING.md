@@ -340,10 +340,10 @@ meshpoint restart
 cd /opt/meshpoint
 sudo git pull origin main
 sudo /opt/meshpoint/venv/bin/pip install -r requirements.txt
-sudo systemctl restart meshpoint
+sudo reboot
 ```
 
-Service restarts (`meshpoint restart`) and reboots (`sudo reboot`) are safe — the systemd service holds the concentrator in reset during shutdown to prevent SPI bus latch.
+A reboot ensures all changes take effect cleanly (kernel modules, SPI state, MeshCore companion). Reboots are safe — the systemd service holds the concentrator in reset during shutdown to prevent SPI bus latch.
 
 **If the concentrator fails to start** with `lgw_start() failed` or `Failed to set SX1250_0 in STANDBY_RC mode`, the SPI bus latched due to a hard power cut. Fix it with a full power cycle:
 
