@@ -270,6 +270,23 @@ def _describe_sources(config: AppConfig) -> str:
     return ", ".join(parts) or "none"
 
 
+def _region_frequency_line(config: AppConfig) -> str:
+    """Resolve the actual primary frequency from the region channel plan."""
+    region = config.radio.region
+    try:
+        from src.hal.concentrator_config import ConcentratorChannelPlan
+        plan = ConcentratorChannelPlan.for_region(region)
+        if plan.single_sf_channel:
+            freq = plan.single_sf_channel.frequency_hz / 1_000_000
+            sf = plan.single_sf_channel.spreading_factor
+            bw = plan.single_sf_channel.bandwidth_khz
+            return f"{freq:.3f} MHz / SF{sf} / BW{bw:.0f} ({region})"
+    except Exception:
+        pass
+    radio = config.radio
+    return f"{radio.frequency_mhz} MHz / SF{radio.spreading_factor} / BW{radio.bandwidth_khz:.0f}"
+
+
 def print_banner(config: AppConfig) -> None:
     """Print the ASCII art startup banner with live config values."""
     from src.version import __version__
@@ -277,7 +294,6 @@ def print_banner(config: AppConfig) -> None:
     art = _BANNER_ART.format(c=CYAN, g=BRIGHT_GREEN, r=RESET)
     print(art)
 
-    radio = config.radio
     device = config.device
     upstream = config.upstream
     dashboard = config.dashboard
@@ -287,7 +303,7 @@ def print_banner(config: AppConfig) -> None:
         ("Device", f"{device.device_name} ({device.device_id or 'unset'})"),
         ("Version", __version__),
         ("Source", source_desc),
-        ("Frequency", f"{radio.frequency_mhz} MHz / SF{radio.spreading_factor} / BW{radio.bandwidth_khz:.0f}"),
+        ("Frequency", _region_frequency_line(config)),
     ]
     if upstream.enabled:
         info_lines.append(("Upstream", upstream.url))

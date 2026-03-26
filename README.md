@@ -4,7 +4,7 @@
 
 <h1 align="center">Meshpoint</h1>
 
-<p align="center"><strong>Open-source LoRa packet intelligence for Meshtastic and MeshCore mesh networks.</strong><br>Currently supports US915. EU868 and ANZ915 regions in development.</p>
+<p align="center"><strong>Open-source LoRa packet intelligence for Meshtastic and MeshCore mesh networks.</strong><br>Supports US915, EU868, ANZ915, IN865, KR920, and SG923 frequency regions.</p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
@@ -22,6 +22,21 @@
 A Raspberry Pi-based LoRa listener that captures traffic from **Meshtastic** and **MeshCore** mesh networks simultaneously. The SX1302/SX1303 concentrator listens on **8 LoRa channels** across all spreading factors at once, while an optional MeshCore USB companion monitors MeshCore traffic on its own frequency.
 
 Packets are captured, decrypted, stored locally, and shown on a real-time dashboard. Optionally, everything syncs upstream to [Meshradar](https://meshradar.io) for aggregated city-wide mesh intelligence.
+
+### Supported Regions
+
+Select your region during setup and the concentrator auto-tunes to the correct frequency. MeshCore companion radios are configured to match automatically.
+
+| Region | Meshtastic Frequency | MeshCore Frequency |
+|--------|---------------------|-------------------|
+| **US** | 906.875 MHz | 910.525 MHz |
+| **EU_868** | 869.525 MHz | 869.618 MHz |
+| **ANZ** | 917.375 MHz | 916.575 MHz |
+| **IN** | 865.625 MHz | Custom |
+| **KR** | 921.125 MHz | Custom |
+| **SG_923** | 917.375 MHz | Custom |
+
+Regions without a standard MeshCore preset prompt for custom frequency entry during setup, or use `meshpoint meshcore-radio custom` anytime.
 
 ### Standard Node vs Meshpoint
 
@@ -150,7 +165,8 @@ All settings live in `config/default.yaml` with user overrides in `config/local.
 
 ```yaml
 radio:
-  frequency_mhz: 906.875      # US915 Meshtastic default
+  region: "US"                 # US, EU_868, ANZ, IN, KR, SG_923
+  frequency_mhz: 906.875      # auto-configured from region
   spreading_factor: 11         # SF11 (LongFast)
   bandwidth_khz: 250.0
 
@@ -191,10 +207,11 @@ FastAPI server on port 8080:
 ## CLI
 
 ```bash
-meshpoint status     # service status + config summary
-meshpoint logs       # tail the service journal
-meshpoint restart    # restart the service
-sudo meshpoint setup # re-run config wizard
+meshpoint status         # service status + config summary
+meshpoint logs           # tail the service journal
+meshpoint restart        # restart the service
+meshpoint meshcore-radio # configure MeshCore companion radio frequency
+sudo meshpoint setup     # re-run config wizard
 ```
 
 ---
@@ -221,11 +238,16 @@ sudo meshpoint setup # re-run config wizard
 - **Device role extraction** — Node table shows CLIENT, ROUTER, REPEATER, TRACKER, SENSOR, and other roles from NodeInfo packets.
 - **Smart relay engine** — Deduplication, token-bucket rate limiting, hop/type/signal filtering, independent SX1262 TX path.
 
-#### Late March
+#### Mid March
 - **Live dashboard UX** — Color-coded packet feed, decoded payload contents, 24h active node counts, version-based update indicator, and enlarged map view.
 - **Cloud dashboard tabs** — Tabbed layout with fleet view, interactive map controls, device-scoped filters, unified packet cards with signal strength bars, and public activity stream for visitors.
 - **MeshCore USB capture** — New capture source for USB-connected MeshCore companion nodes. Auto-detects the device, configures radio frequency via the setup wizard (US/EU/ANZ presets or custom), with auto-reconnect and health monitoring. Startup banner shows all active sources.
 - **Custom frequency tuning** — Configurable SX1302 channel plan via local.yaml. Validated on live hardware with LongFast (SF11/BW250). Dual-protocol HAL patch for simultaneous Meshtastic and MeshCore sync words.
+
+#### Late March — International Frequency Support
+- **Multi-region concentrator support** — Added support for US, EU_868, ANZ, IN, KR, and SG_923 frequency regions. The SX1302 concentrator automatically tunes to the correct primary frequency, spreading factor, and bandwidth for each region.
+- **Setup wizard region selector** — New step in the setup wizard lets you choose your frequency region. MeshCore companion radios are automatically configured to match your selected region (US, EU, ANZ presets).
+- **`meshpoint meshcore-radio` CLI command** — New standalone command to switch your MeshCore companion radio frequency without re-running the full setup wizard. Supports preset regions (`meshpoint meshcore-radio EU`) or custom manual entry (`meshpoint meshcore-radio custom`). Auto-detects USB port, handles service stop/restart, and updates config if the port changes after reboot.
 
 ---
 

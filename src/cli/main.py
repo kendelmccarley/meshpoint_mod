@@ -47,6 +47,11 @@ def cmd_stop(_args: argparse.Namespace) -> None:
     print("  Service stopped.")
 
 
+def cmd_meshcore_radio(args: argparse.Namespace) -> None:
+    from src.cli.meshcore_radio_command import run_meshcore_radio
+    run_meshcore_radio(args)
+
+
 def cmd_version(_args: argparse.Namespace) -> None:
     print(f"  Mesh Point v{VERSION}")
 
@@ -63,6 +68,20 @@ def main() -> None:
     sub.add_parser("logs", help="Tail the service logs (journalctl)")
     sub.add_parser("restart", help="Restart the meshpoint service")
     sub.add_parser("stop", help="Stop the meshpoint service")
+    mc = sub.add_parser(
+        "meshcore-radio",
+        help="Configure MeshCore companion radio frequency",
+    )
+    mc.add_argument(
+        "region",
+        nargs="?",
+        help="Region preset (US, EU, ANZ) or 'custom'",
+    )
+    mc.add_argument(
+        "--port",
+        help="Serial port override (auto-detected if omitted)",
+    )
+
     sub.add_parser("version", help="Print version information")
 
     args = parser.parse_args()
@@ -73,6 +92,7 @@ def main() -> None:
         "logs": cmd_logs,
         "restart": cmd_restart,
         "stop": cmd_stop,
+        "meshcore-radio": cmd_meshcore_radio,
         "version": cmd_version,
     }
 

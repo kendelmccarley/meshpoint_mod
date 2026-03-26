@@ -1,4 +1,5 @@
 radio:
+  region: "US"
   frequency_mhz: 906.875
   spreading_factor: 11
   bandwidth_khz: 250.0

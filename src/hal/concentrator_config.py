@@ -32,8 +32,32 @@ class ConcentratorChannelPlan:
     radio_0_freq_hz: int = 0
     radio_1_freq_hz: int = 0
 
+    @classmethod
+    def for_region(cls, region: str) -> ConcentratorChannelPlan:
+        raise RuntimeError(_CORE_MISSING)
+
     @staticmethod
     def meshtastic_us915_default() -> ConcentratorChannelPlan:
+        raise RuntimeError(_CORE_MISSING)
+
+    @staticmethod
+    def meshtastic_eu868_default() -> ConcentratorChannelPlan:
+        raise RuntimeError(_CORE_MISSING)
+
+    @staticmethod
+    def meshtastic_anz_default() -> ConcentratorChannelPlan:
+        raise RuntimeError(_CORE_MISSING)
+
+    @staticmethod
+    def meshtastic_in865_default() -> ConcentratorChannelPlan:
+        raise RuntimeError(_CORE_MISSING)
+
+    @staticmethod
+    def meshtastic_kr920_default() -> ConcentratorChannelPlan:
+        raise RuntimeError(_CORE_MISSING)
+
+    @staticmethod
+    def meshtastic_sg923_default() -> ConcentratorChannelPlan:
         raise RuntimeError(_CORE_MISSING)
 
     def to_hal_config(self) -> dict:

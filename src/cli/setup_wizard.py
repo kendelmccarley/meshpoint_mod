@@ -36,6 +36,7 @@ def run_setup() -> None:
     config: dict = {}
 
     report = _step_hardware_detect()
+    _step_region(config)
     _step_capture_source(config, report)
     _step_api_key(config)
     _step_device_name(config)
@@ -55,17 +56,57 @@ def _print_banner() -> None:
     print()
 
 
+SUPPORTED_REGIONS = ["US", "EU_868", "ANZ", "IN", "KR", "SG_923"]
+
+_REGION_LABELS = {
+    "US": "US      (902-928 MHz)",
+    "EU_868": "EU_868  (869 MHz -- Europe, Russia, Africa)",
+    "ANZ": "ANZ     (915-928 MHz -- Australia, NZ)",
+    "IN": "IN      (865-867 MHz -- India)",
+    "KR": "KR      (920-923 MHz -- Korea)",
+    "SG_923": "SG_923  (917-925 MHz -- Singapore, SE Asia)",
+}
+
+
 def _step_hardware_detect() -> HardwareReport:
     """Probe for all available hardware."""
-    print("  [1/7] Detecting hardware...")
+    print("  [1/8] Detecting hardware...")
     report = detect_all()
     print_report(report)
     return report
 
 
+def _step_region(config: dict) -> None:
+    """Select the LoRa frequency region."""
+    print("  [2/8] Frequency region")
+    print()
+    print("        Select the region that matches your local Meshtastic")
+    print("        network. This determines which frequencies the")
+    print("        concentrator listens on.")
+    print()
+
+    for i, region in enumerate(SUPPORTED_REGIONS, 1):
+        print(f"          {i}. {_REGION_LABELS[region]}")
+
+    while True:
+        raw = _prompt(f"Region [1-{len(SUPPORTED_REGIONS)}]:").strip()
+        try:
+            idx = int(raw) - 1
+            if 0 <= idx < len(SUPPORTED_REGIONS):
+                break
+        except ValueError:
+            pass
+        print(f"          Please enter a number between 1 and {len(SUPPORTED_REGIONS)}.")
+
+    region = SUPPORTED_REGIONS[idx]
+    config.setdefault("radio", {})["region"] = region
+    print(f"        Region set to {region}")
+    print()
+
+
 def _step_capture_source(config: dict, report: HardwareReport) -> None:
     """Choose the LoRa capture source based on detected hardware."""
-    print("  [2/7] Capture source")
+    print("  [3/8] Capture source")
 
     if report.concentrator_available:
         print(f"        Concentrator detected on {report.spi_devices[0]}")
@@ -100,7 +141,7 @@ def _step_api_key(config: dict) -> None:
     """Prompt for the Mesh Radar API key (required, signature-verified)."""
     from src.activation import verify_license_key
 
-    print("  [3/7] API key")
+    print("  [4/8] API key")
     print()
     print("        An API key is required to activate this Mesh Point.")
     print(f"        Get a free key at {CLOUD_URL}")
@@ -132,7 +173,7 @@ def _step_api_key(config: dict) -> None:
 
 def _step_device_name(config: dict) -> None:
     """Choose a name for this Mesh Point."""
-    print("  [4/7] Device name")
+    print("  [5/8] Device name")
     default_name = _default_device_name()
     name = _prompt(f"Device name [{default_name}]:").strip()
     if not name:
@@ -145,7 +186,7 @@ def _step_device_name(config: dict) -> None:
 
 def _step_location(config: dict, report: HardwareReport) -> None:
     """Set device GPS coordinates."""
-    print("  [5/7] Location")
+    print("  [6/8] Location")
 
     gps = report.gps
     if gps.got_fix:
@@ -183,7 +224,7 @@ def _step_location(config: dict, report: HardwareReport) -> None:
 
 def _step_relay(config: dict, report: HardwareReport) -> None:
     """Configure the optional SX1262 relay radio."""
-    print("  [6/7] Relay radio (optional)")
+    print("  [7/8] Relay radio (optional)")
 
     capture_port = config.get("capture", {}).get("serial_port")
     available_ports = [
@@ -219,7 +260,7 @@ def _step_device_id(config: dict) -> None:
     """Generate a stable, persistent device ID."""
     device_id = str(uuid.uuid4())
     config.setdefault("device", {})["device_id"] = device_id
-    print(f"  [7/7] Device ID: {device_id}")
+    print(f"  [8/8] Device ID: {device_id}")
     print()
 
 
@@ -299,11 +340,17 @@ def _maybe_add_meshcore_usb(config: dict, report: HardwareReport) -> None:
     print(f"        MeshCore USB enabled on {chosen_port}")
     print()
 
-    _configure_meshcore_radio(chosen_port)
+    selected_region = config.get("radio", {}).get("region", "US")
+    _configure_meshcore_radio(chosen_port, selected_region)
 
 
-def _configure_meshcore_radio(port: str) -> None:
-    """Offer to configure the MeshCore companion's radio frequency."""
+def _configure_meshcore_radio(port: str, region: str = "US") -> None:
+    """Configure the MeshCore companion's radio frequency.
+
+    If the selected region has a known MeshCore preset (US, EU, ANZ),
+    it is applied automatically. Otherwise the user is prompted for
+    custom parameters or can skip.
+    """
     import time
 
     from src.cli.meshcore_radio_config import (
@@ -324,38 +371,30 @@ def _configure_meshcore_radio(port: str) -> None:
         print("        Could not read current radio settings.")
 
     print()
-    print("        The companion must be on the correct frequency for")
-    print("        your region to hear MeshCore traffic.")
-    print()
 
-    options = list(REGION_PRESETS.keys()) + ["Custom", "Skip"]
-    labels = [
-        REGION_PRESETS[k].label if k in REGION_PRESETS else k
-        for k in options
-    ]
+    meshcore_region_map = {"US": "US", "EU_868": "EU", "ANZ": "ANZ"}
+    auto_preset_key = meshcore_region_map.get(region)
 
-    print("        Configure radio for your region?")
-    for i, label in enumerate(labels, 1):
-        print(f"          {i}. {label}")
-
-    while True:
-        raw = _prompt(f"Choice [1-{len(options)}]:").strip()
-        try:
-            idx = int(raw) - 1
-            if 0 <= idx < len(options):
-                break
-        except ValueError:
-            pass
-        print(f"          Please enter a number between 1 and {len(options)}.")
-
-    choice = options[idx]
-
-    if choice == "Skip":
-        print("        Keeping current radio settings.")
+    if auto_preset_key and auto_preset_key in REGION_PRESETS:
+        preset = REGION_PRESETS[auto_preset_key]
+        print(f"        Applying {auto_preset_key} MeshCore preset")
+        print(f"        ({preset.label})")
+        if not _confirm("Apply this preset?", default_yes=True):
+            print("        Skipped. Configure manually later if needed.")
+            print()
+            return
+        freq = preset.frequency_mhz
+        bw = preset.bandwidth_khz
+        sf = preset.spreading_factor
+        cr = preset.coding_rate
+    else:
+        print("        No standard MeshCore preset for your region.")
+        print("        Enter custom radio parameters, or skip.")
         print()
-        return
-
-    if choice == "Custom":
+        if not _confirm("Enter custom MeshCore radio settings?"):
+            print("        Skipped.")
+            print()
+            return
         freq = _prompt_float("Frequency MHz (e.g. 910.525):")
         bw = _prompt_float("Bandwidth kHz (e.g. 62.5):")
         sf_val = _prompt_float("Spreading factor (e.g. 7):")
@@ -366,12 +405,6 @@ def _configure_meshcore_radio(port: str) -> None:
             return
         sf = int(sf_val)
         cr = int(cr_val)
-    else:
-        preset = REGION_PRESETS[choice]
-        freq = preset.frequency_mhz
-        bw = preset.bandwidth_khz
-        sf = preset.spreading_factor
-        cr = preset.coding_rate
 
     print(f"        Setting radio to {freq} MHz / BW{bw} / SF{sf} / CR{cr}...")
 
