@@ -53,11 +53,11 @@ Regions without a standard MeshCore preset prompt for custom frequency entry dur
 
 ## Hardware
 
-> **Requirements:** Raspberry Pi 4, 64-bit Raspberry Pi OS, Python 3.13. The compiled core modules are aarch64 binaries — other platforms (Pi 3, x86, 32-bit OS) are not currently supported.
+> **Requirements:** Raspberry Pi 4, 64-bit Raspberry Pi OS, Python 3.13. The compiled core modules are aarch64 binaries: other platforms (Pi 3, x86, 32-bit OS) are not currently supported.
 
 ### Option A: RAK Hotspot V2 (~$60, recommended)
 
-The easiest path. RAK/MNTD Hotspot V2 miners (model **RAK7248**) include a Pi 4, RAK2287 (SX1302), Pi HAT, metal enclosure, antenna, and power supply — everything you need. Helium's IoT network didn't pan out, so these are all over eBay for $40-70.
+The easiest path. RAK/MNTD Hotspot V2 miners (model **RAK7248**) include a Pi 4, RAK2287 (SX1302), Pi HAT, metal enclosure, antenna, and power supply: everything you need. Helium's IoT network didn't pan out, so these are all over eBay for $40-70.
 
 [Find on eBay ($30-80)](https://www.ebay.com/sch/i.html?_nkw=RAK%20Hotspot%20V2%20%2F%20MNTD&_sacat=0&_from=R40&rt=nc&_udlo=30&_udhi=80)
 
@@ -73,7 +73,7 @@ Another Helium-era miner with identical compatibility. The SenseCap M1 includes 
 
 <img src="docs/sensecap-m1.png" width="360" alt="SenseCap M1">
 
-Remove the 2 screws on the back panel (the side without the Ethernet/antenna ports) to access the SD card — it may be held in place by kapton tape. Flash with Raspberry Pi OS 64-bit and run the install script. USB-C power connects to the carrier board, not the Pi directly.
+Remove the 2 screws on the back panel (the side without the Ethernet/antenna ports) to access the SD card: it may be held in place by kapton tape. Flash with Raspberry Pi OS 64-bit and run the install script. USB-C power connects to the carrier board, not the Pi directly.
 
 ### Option C: Build Your Own (~$85)
 
@@ -138,13 +138,13 @@ Open `http://<pi-ip>:8080` for the local dashboard.
 └──────────┘    └──────────┘    └─────────────────────────┘
 ```
 
-**Capture** — SX1302 HAL receives Meshtastic on 8 channels across SF7-SF12. A USB MeshCore companion (optional) receives MeshCore traffic on its configured frequency.
+**Capture:** SX1302 HAL receives Meshtastic on 8 channels across SF7-SF12. A USB MeshCore companion (optional) receives MeshCore traffic on its configured frequency.
 
-**Decode** — Packets from both protocols decrypted and parsed. Positions, text messages, telemetry, node info, advertisements, routing data — all extracted and stored.
+**Decode:** Packets from both protocols decrypted and parsed. Positions, text messages, telemetry, node info, advertisements, routing data: all extracted and stored.
 
-**Dashboard** — Local web UI with a live map, packet feed with decoded contents, traffic charts, and signal analytics.
+**Dashboard:** Local web UI with a live map, packet feed with decoded contents, traffic charts, and signal analytics.
 
-**Upstream** — Optional WebSocket connection to Meshradar for aggregated multi-site mesh intelligence.
+**Upstream:** Optional WebSocket connection to Meshradar for aggregated multi-site mesh intelligence.
 
 ---
 
@@ -155,7 +155,7 @@ Connect a separate SX1262 radio (T-Beam, Heltec, RAK4631) via USB and the Meshpo
 - Deduplication via packet ID tracking
 - Token-bucket rate limiting
 - RSSI-based signal filtering
-- TX path is independent from RX — transmission never blocks reception
+- TX path is independent from RX: transmission never blocks reception
 
 ---
 
@@ -220,36 +220,41 @@ See the [Onboarding Guide](docs/ONBOARDING.md#managing-your-mesh-point) for full
 
 ## Troubleshooting
 
-**Chip version 0x00** — Concentrator not responding. Check that the concentrator module is seated, SPI is enabled (`raspi-config` → Interface Options → SPI), and try a full power cycle (unplug for 10+ seconds). Normal chip versions are `0x10` (SX1302) and `0x12` (SX1303).
+**Chip version 0x00:** Concentrator not responding. Check that the concentrator module is seated, SPI is enabled (`raspi-config` → Interface Options → SPI), and try a full power cycle (unplug for 10+ seconds). Normal chip versions are `0x10` (SX1302) and `0x12` (SX1303).
 
-**No packets** — Verify antenna is connected and frequency matches your region. Check `meshpoint logs` for `lgw_receive returned N packet(s)`.
+**No packets:** Verify antenna is connected and frequency matches your region. Check `meshpoint logs` for `lgw_receive returned N packet(s)`.
 
-**Upstream 401** — Bad API key. Get a free one at [meshradar.io](https://meshradar.io) and re-run `sudo meshpoint setup`.
+**Upstream 401:** Bad API key. Get a free one at [meshradar.io](https://meshradar.io) and re-run `sudo meshpoint setup`.
 
 ---
 
 ## Changelog
 
-### March 2026
+### v0.5.0 (March 29, 2026)
+
+- **Multi-region frequency support:** 6 Meshtastic regions (US, EU_868, ANZ, IN, KR, SG_923) with auto-tuning concentrator and setup wizard region selector.
+- **Preset tuning:** service channel SF and BW are configurable via `local.yaml`. Supports MediumFast, ShortFast, ShortTurbo: not just LongFast.
+- **Frequency override:** set `frequency_mhz` in `local.yaml` to tune to a non-default slot within your region.
+- **Full portnum decoding:** position speed/heading/altitude, power metrics, routing errors, NEIGHBORINFO, TRACEROUTE payloads.
+- **`meshpoint meshcore-radio` CLI:** switch MeshCore companion frequency without re-running the full wizard. Presets (US/EU/ANZ) or custom entry.
+- **Startup banner accuracy:** boot log shows the actual radio config, not just the region default.
+- **Config stability:** empty YAML sections no longer crash the service on startup.
+
+### Earlier (March 2026)
 
 #### Early March
-- **Real-time packet streaming** — Cloud dashboard receives packets instantly via WebSocket. Live animated lines trace packets from source nodes to your Meshpoint on the map as they arrive.
-- **Cloud map overhaul** — Marker clustering, signal heatmap layer, topology lines from neighborinfo data, and a live Recent Packets ticker panel.
-- **SenseCap M1 support** — Auto-detects SenseCap M1 carrier board via I2C probe during setup. Flash an SD card and go.
-- **14 Meshtastic portnums decoded** — TEXT, POSITION, NODEINFO, TELEMETRY, ROUTING, ADMIN, WAYPOINT, DETECTION_SENSOR, PAXCOUNTER, STORE_FORWARD, RANGE_TEST, TRACEROUTE, NEIGHBORINFO, MAP_REPORT — plus encrypted packet tracking.
-- **Device role extraction** — Node table shows CLIENT, ROUTER, REPEATER, TRACKER, SENSOR, and other roles from NodeInfo packets.
-- **Smart relay engine** — Deduplication, token-bucket rate limiting, hop/type/signal filtering, independent SX1262 TX path.
+- **Real-time packet streaming:** cloud dashboard receives packets instantly via WebSocket. Live animated lines trace packets from source nodes to your Meshpoint on the map.
+- **Cloud map overhaul:** marker clustering, signal heatmap layer, topology lines from neighborinfo data, and a live Recent Packets ticker panel.
+- **SenseCap M1 support:** auto-detects SenseCap M1 carrier board via I2C probe during setup. Flash an SD card and go.
+- **14 Meshtastic portnums decoded:** TEXT, POSITION, NODEINFO, TELEMETRY, ROUTING, ADMIN, WAYPOINT, DETECTION_SENSOR, PAXCOUNTER, STORE_FORWARD, RANGE_TEST, TRACEROUTE, NEIGHBORINFO, MAP_REPORT, plus encrypted packet tracking.
+- **Device role extraction:** node table shows CLIENT, ROUTER, REPEATER, TRACKER, SENSOR, and other roles from NodeInfo packets.
+- **Smart relay engine:** deduplication, token-bucket rate limiting, hop/type/signal filtering, independent SX1262 TX path.
 
 #### Mid March
-- **Live dashboard UX** — Color-coded packet feed, decoded payload contents, 24h active node counts, version-based update indicator, and enlarged map view.
-- **Cloud dashboard tabs** — Tabbed layout with fleet view, interactive map controls, device-scoped filters, unified packet cards with signal strength bars, and public activity stream for visitors.
-- **MeshCore USB capture** — New capture source for USB-connected MeshCore companion nodes. Auto-detects the device, configures radio frequency via the setup wizard (US/EU/ANZ presets or custom), with auto-reconnect and health monitoring. Startup banner shows all active sources.
-- **Custom frequency tuning** — Configurable SX1302 channel plan via local.yaml. Validated on live hardware with LongFast (SF11/BW250). Dual-protocol HAL patch for simultaneous Meshtastic and MeshCore sync words.
-
-#### Late March — International Frequency Support
-- **Multi-region concentrator support** — Added support for US, EU_868, ANZ, IN, KR, and SG_923 frequency regions. The SX1302 concentrator automatically tunes to the correct primary frequency, spreading factor, and bandwidth for each region.
-- **Setup wizard region selector** — New step in the setup wizard lets you choose your frequency region. MeshCore companion radios are automatically configured to match your selected region (US, EU, ANZ presets).
-- **`meshpoint meshcore-radio` CLI command** — New standalone command to switch your MeshCore companion radio frequency without re-running the full setup wizard. Supports preset regions (`meshpoint meshcore-radio EU`) or custom manual entry (`meshpoint meshcore-radio custom`). Auto-detects USB port, handles service stop/restart, and updates config if the port changes after reboot.
+- **Live dashboard UX:** color-coded packet feed, decoded payload contents, 24h active node counts, version-based update indicator, and enlarged map view.
+- **Cloud dashboard tabs:** tabbed layout with fleet view, interactive map controls, device-scoped filters, unified packet cards with signal strength bars, and public activity stream for visitors.
+- **MeshCore USB capture:** new capture source for USB-connected MeshCore companion nodes. Auto-detects the device, configures radio frequency via the setup wizard (US/EU/ANZ presets or custom), with auto-reconnect and health monitoring. Startup banner shows all active sources.
+- **Custom frequency tuning:** configurable SX1302 channel plan via `local.yaml`. Validated on live hardware with LongFast (SF11/BW250). Dual-protocol HAL patch for simultaneous Meshtastic and MeshCore sync words.
 
 ---
 
@@ -261,7 +266,7 @@ cd /opt/meshpoint && sudo git pull origin main && sudo systemctl restart meshpoi
 
 The local dashboard shows an orange update indicator when a new version is available. After updating, verify the new version in the startup banner or with `meshpoint version`.
 
-### Changing your frequency region (existing Mesh Points)
+### Changing your frequency region (existing Meshpoints)
 
 You don't need to re-run the full setup wizard. Edit your config and restart:
 
@@ -310,7 +315,7 @@ AI-assisted contributions are allowed, but contributors should review and unders
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Compiled core modules are distributed separately under a commercial license.
+MIT: see [LICENSE](LICENSE). Compiled core modules are distributed separately under a commercial license.
 
 ---
 
