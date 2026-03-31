@@ -230,6 +230,14 @@ See the [Onboarding Guide](docs/ONBOARDING.md#managing-your-mesh-point) for full
 
 ## Changelog
 
+### v0.5.2 (March 31, 2026)
+
+- **Core module binary fix:** v0.5.1 shipped updated source but stale compiled `.so` files. This release includes the correctly compiled binaries.
+
+### v0.5.1 (March 30, 2026)
+
+- **Non-LongFast preset fix:** `ConcentratorChannelPlan.from_radio_config()` no longer ignores spreading factor and bandwidth when using the region's default frequency. EU_868 MediumFast (SF9/BW250), ShortFast, and other presets now work correctly. Previously, any preset at the default frequency was silently overridden to LongFast (SF11/BW250). ([#4](https://github.com/KMX415/meshpoint/issues/4))
+
 ### v0.5.0 (March 29, 2026)
 
 - **Multi-region frequency support:** 6 Meshtastic regions (US, EU_868, ANZ, IN, KR, SG_923) with auto-tuning concentrator and setup wizard region selector.
