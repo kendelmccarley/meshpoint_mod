@@ -11,6 +11,7 @@ from src.decode.packet_router import PacketRouter
 from src.log_format import CYAN, DIM, GREEN, RESET
 from src.models.packet import Packet, Protocol, RawCapture
 from src.relay.meshtastic_transmitter import MeshtasticTransmitter
+from src.relay.mqtt_publisher import MqttPublisher
 from src.relay.relay_manager import RelayManager
 from src.storage.database import DatabaseManager
 from src.storage.node_repository import NodeRepository
@@ -46,6 +47,7 @@ class PipelineCoordinator:
             max_relay_rssi=relay_cfg.max_relay_rssi,
         )
         self._transmitter: Optional[MeshtasticTransmitter] = None
+        self._mqtt: Optional[MqttPublisher] = None
 
         self._node_repo: Optional[NodeRepository] = None
         self._packet_repo: Optional[PacketRepository] = None
@@ -98,6 +100,7 @@ class PipelineCoordinator:
 
         self._setup_channel_keys()
         self._setup_relay_transmitter()
+        self._setup_mqtt()
         await self._capture.start()
 
         self._running = True
@@ -128,6 +131,8 @@ class PipelineCoordinator:
                     pass
         if self._transmitter:
             self._transmitter.disconnect()
+        if self._mqtt:
+            self._mqtt.disconnect()
         await self._db.disconnect()
         logger.info(
             f" {CYAN}--{RESET} {DIM}PIPELINE{RESET}  stopped"
@@ -176,6 +181,7 @@ class PipelineCoordinator:
         packet.capture_source = raw.capture_source
         await self._store_packet(packet)
         await self._relay.process_packet(packet)
+        self._publish_mqtt(packet)
         self._notify_callbacks(packet)
 
     @staticmethod
@@ -235,6 +241,35 @@ class PipelineCoordinator:
             f"transmitter ready  "
             f"{DIM}max {self._config.relay.max_relay_per_minute}/min{RESET}"
         )
+
+    def _setup_mqtt(self) -> None:
+        if not self._config.mqtt.enabled:
+            logger.info(
+                f" {CYAN}--{RESET} {DIM}MQTT{RESET}     disabled"
+            )
+            return
+        try:
+            device_name = self._config.device.device_name
+            self._mqtt = MqttPublisher(self._config.mqtt, device_name)
+            if self._mqtt.connect():
+                logger.info(
+                    f" {CYAN}--{RESET} {GREEN}MQTT{RESET}     "
+                    f"publisher started as {self._mqtt.gateway_id}"
+                )
+            else:
+                logger.warning("MQTT publisher failed to connect, continuing without MQTT")
+                self._mqtt = None
+        except Exception:
+            logger.exception("MQTT setup failed, continuing without MQTT")
+            self._mqtt = None
+
+    def _publish_mqtt(self, packet: Packet) -> None:
+        if not self._mqtt:
+            return
+        try:
+            self._mqtt.publish(packet)
+        except Exception:
+            logger.exception("MQTT publish error for packet %s", packet.packet_id)
 
     def _setup_channel_keys(self) -> None:
         for name, key in self._config.meshtastic.channel_keys.items():

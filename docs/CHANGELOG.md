@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.5.5 (April 2, 2026)
+
+- **MQTT hotfix:** shipped missing MQTT runtime files (publisher, formatter, pipeline wiring) that were absent from v0.5.4. MQTT config and docs were present but the code was not, so `mqtt.enabled: true` had no effect. Update and restart to activate MQTT publishing.
+
 ### v0.5.4 (March 30, 2026)
 
 - **MQTT gateway:** dual-protocol MQTT publishing for Meshtastic (protobuf ServiceEnvelope) and MeshCore (JSON). Publishes to community maps (meshmap.net, NHmesh.live) and Home Assistant. Two-gate privacy model: MQTT is off by default, and only public channel traffic is published unless you explicitly allowlist a private channel. Each Meshpoint gets a unique node-format gateway ID that integrates natively with the Meshtastic ecosystem, appearing on meshmap.net, Liam Cottle's map, and other community tools. Optional JSON mirror for HA/Node-RED, auto-discovery sensor configs, and configurable location precision.
