@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         _incrementPacketCount();
     });
 
+    _setupTabs();
+
     window.concentratorWS.connect();
 
     setInterval(() => {
@@ -145,6 +147,25 @@ async function _checkForUpdate() {
             badge.classList.add('hidden');
         }
     } catch (_) {}
+}
+
+function _setupTabs() {
+    document.querySelectorAll('.tab-bar__btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+            document.querySelectorAll('.tab-bar__btn').forEach(b => b.classList.remove('tab-bar__btn--active'));
+            btn.classList.add('tab-bar__btn--active');
+
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('tab-content--active'));
+            const target = document.getElementById(`tab-${tabId}`);
+            if (target) target.classList.add('tab-content--active');
+
+            if (tabId === 'messages' && window.messagingPanel) {
+                window.messagingPanel.onActivated();
+                window.messagingPanel.resetUnreadBadge();
+            }
+        });
+    });
 }
 
 function _setText(id, value) {

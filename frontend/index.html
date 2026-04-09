@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/messaging.css" />
 </head>
 <body>
     <header class="top-bar">
@@ -32,6 +33,12 @@
         </div>
     </header>
 
+    <nav class="tab-bar">
+        <button class="tab-bar__btn tab-bar__btn--active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-bar__btn" data-tab="messages">Messages <span id="msg-unread-badge" class="tab-bar__badge" style="display:none">0</span></button>
+    </nav>
+
+    <div id="tab-dashboard" class="tab-content tab-content--active">
     <main class="dashboard">
         <section class="dashboard__stats">
             <div class="stat-card" id="stat-nodes">
@@ -116,6 +123,8 @@
                                 <th>Type</th>
                                 <th>RSSI</th>
                                 <th>SNR</th>
+                                <th>Freq</th>
+                                <th>SF</th>
                                 <th>Hops</th>
                                 <th>Details</th>
                             </tr>
@@ -126,6 +135,11 @@
             </div>
         </section>
     </main>
+    </div>
+
+    <div id="tab-messages" class="tab-content">
+        <div id="messaging-panel"></div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -133,6 +147,9 @@
     <script src="js/components/node_map.js"></script>
     <script src="js/simple_node_list.js"></script>
     <script src="js/simple_packet_feed.js"></script>
+    <script src="js/messaging_contacts.js"></script>
+    <script src="js/messaging_chat.js"></script>
+    <script src="js/messaging.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

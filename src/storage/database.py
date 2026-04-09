@@ -68,6 +68,23 @@ CREATE INDEX IF NOT EXISTS idx_packets_protocol ON packets(protocol);
 CREATE INDEX IF NOT EXISTS idx_packets_type ON packets(packet_type);
 CREATE INDEX IF NOT EXISTS idx_telemetry_node ON telemetry(node_id);
 CREATE INDEX IF NOT EXISTS idx_telemetry_timestamp ON telemetry(timestamp);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction     TEXT NOT NULL,
+    text          TEXT NOT NULL,
+    node_id       TEXT NOT NULL,
+    node_name     TEXT,
+    protocol      TEXT NOT NULL,
+    channel       INTEGER NOT NULL DEFAULT 0,
+    timestamp     TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'sent',
+    packet_id     TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_node ON messages(node_id);
+CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
+CREATE INDEX IF NOT EXISTS idx_messages_direction ON messages(direction);
 """
 
 

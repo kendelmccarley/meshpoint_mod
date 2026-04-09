@@ -115,6 +115,21 @@ class MqttConfig:
 
 
 @dataclass
+class TransmitConfig:
+    """Native LoRa transmission settings.
+
+    When enabled, the Meshpoint can send Meshtastic messages through
+    the onboard SX1261 radio and MeshCore messages through the USB
+    companion. Disabled by default: opt-in via local.yaml.
+    """
+
+    enabled: bool = False
+    node_id: Optional[int] = None
+    tx_power_dbm: int = 14
+    max_duty_cycle_percent: float = 1.0
+
+
+@dataclass
 class AppConfig:
     radio: RadioConfig = field(default_factory=RadioConfig)
     meshtastic: MeshtasticConfig = field(default_factory=MeshtasticConfig)
@@ -126,6 +141,7 @@ class AppConfig:
     device: DeviceConfig = field(default_factory=DeviceConfig)
     relay: RelayConfig = field(default_factory=RelayConfig)
     mqtt: MqttConfig = field(default_factory=MqttConfig)
+    transmit: TransmitConfig = field(default_factory=TransmitConfig)
 
 
 def _merge_dataclass(instance, overrides: dict):
@@ -161,6 +177,7 @@ def _apply_yaml(cfg: AppConfig, path: Path) -> None:
         "device": cfg.device,
         "relay": cfg.relay,
         "mqtt": cfg.mqtt,
+        "transmit": cfg.transmit,
     }
 
     for section_name, section_instance in section_map.items():

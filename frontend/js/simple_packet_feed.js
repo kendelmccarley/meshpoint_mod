@@ -41,6 +41,11 @@ class SimplePacketFeed {
         const protocolClass = `protocol-${protocol}`;
         const rssiClass = this._rssiClass(rssiVal);
 
+        const freqMhz = sig.frequency_mhz || packet.frequency_mhz;
+        const freq = freqMhz ? `${Number(freqMhz).toFixed(1)}` : '--';
+        const sfVal = sig.spreading_factor || packet.spreading_factor;
+        const sf = sfVal ? `SF${sfVal}` : '--';
+
         tr.innerHTML = `
             <td>${time}</td>
             <td class="${protocolClass}">${protocol}</td>
@@ -49,6 +54,8 @@ class SimplePacketFeed {
             <td class="${typeClass}">${type}</td>
             <td class="${rssiClass}">${rssi}</td>
             <td>${snr}</td>
+            <td class="td-freq">${freq}</td>
+            <td class="td-sf">${sf}</td>
             <td>${hops}</td>
             <td class="packet-details-cell ${typeClass}">${this._esc(details)}</td>
         `;
@@ -79,7 +86,7 @@ class SimplePacketFeed {
         const detailTr = document.createElement('tr');
         detailTr.classList.add('packet-detail-row');
         const td = document.createElement('td');
-        td.colSpan = 9;
+        td.colSpan = 11;
 
 
         const payload = packet.decoded_payload;

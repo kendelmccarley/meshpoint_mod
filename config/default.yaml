@@ -63,6 +63,12 @@ upstream:
   buffer_max_size: 5000
   auth_token: null
 
+transmit:
+  enabled: false
+  node_id: null             # auto-generated 4-byte Meshtastic node ID
+  tx_power_dbm: 14          # conservative default (dBm)
+  max_duty_cycle_percent: 1.0  # EU-safe default
+
 mqtt:
   enabled: false
   broker: "mqtt.meshtastic.org"
