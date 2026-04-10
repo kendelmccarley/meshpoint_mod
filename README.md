@@ -237,6 +237,7 @@ sudo systemctl restart meshpoint
 
 - **[Onboarding Guide](docs/ONBOARDING.md):** step-by-step from empty Pi to running Meshpoint
 - **[Configuration Guide](docs/CONFIGURATION.md):** all config options, private channels, relay, upstream, radio tuning
+- **[Troubleshooting](docs/TROUBLESHOOTING.md):** common issues, recovery, and diagnostics
 - **[Changelog](docs/CHANGELOG.md):** version history and release notes
 
 ---
