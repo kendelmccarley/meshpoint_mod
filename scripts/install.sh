@@ -209,10 +209,13 @@ _TX_B = """\
     err = lgw_reg_w(SX1302_REG_TX_TOP_FRAME_SYNCH_1_PEAK2_POS(pkt_data->rf_chain), sx1302_tx_sw_peak2);
     CHECK_ERR(err);"""
 
-if _TX_A in s1:
+if "static uint8_t sx1302_tx_sw_peak1" not in s1:
     s1 = s1.replace("int sx1302_lora_syncword(", "static uint8_t sx1302_tx_sw_peak1 = 2;\nstatic uint8_t sx1302_tx_sw_peak2 = 4;\n\nint sx1302_lora_syncword(", 1)
-    if "sx1302_tx_sw_peak1 = sw_reg1" not in s1:
-        s1 = s1.replace("    sw_reg2 = 4;\n    }\n\n    err |= lgw_reg_w(SX1302_REG_RX_TOP_FRAME_SYNCH0_SF5_PEAK1_POS_SF5", "    sw_reg2 = 4;\n    }\n\n    sx1302_tx_sw_peak1 = sw_reg1;\n    sx1302_tx_sw_peak2 = sw_reg2;\n\n    err |= lgw_reg_w(SX1302_REG_RX_TOP_FRAME_SYNCH0_SF5_PEAK1_POS_SF5", 1)
+
+if "sx1302_tx_sw_peak1 = sw_reg1" not in s1:
+    s1 = s1.replace("    sw_reg2 = 4;\n    }\n\n    err |= lgw_reg_w(SX1302_REG_RX_TOP_FRAME_SYNCH0_SF5_PEAK1_POS_SF5", "    sw_reg2 = 4;\n    }\n\n    sx1302_tx_sw_peak1 = sw_reg1;\n    sx1302_tx_sw_peak2 = sw_reg2;\n\n    err |= lgw_reg_w(SX1302_REG_RX_TOP_FRAME_SYNCH0_SF5_PEAK1_POS_SF5", 1)
+
+if _TX_A in s1:
     s1 = s1.replace(_TX_A, _TX_B, 1)
 
 f1.write_text(s1, newline="\n")
