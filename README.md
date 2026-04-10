@@ -23,39 +23,46 @@
 
 ## What Is This?
 
-A Raspberry Pi-based LoRa listener that captures traffic from **Meshtastic** and **MeshCore** mesh networks simultaneously. The SX1302/SX1303 concentrator provides a dedicated, high-sensitivity LoRa radio front-end optimized for passive reception, while an optional MeshCore USB companion monitors MeshCore traffic on its own frequency.
+A Raspberry Pi-based LoRa intelligence platform for **Meshtastic** and **MeshCore** mesh networks. The SX1302/SX1303 concentrator provides a dedicated, high-sensitivity LoRa radio front-end for reception, and as of v0.6.0, native Meshtastic transmission: send and receive messages directly from the dashboard.
 
-Packets are captured, decrypted, stored locally, and shown on a real-time dashboard. Optionally, everything syncs upstream to [Meshradar](https://meshradar.io) for aggregated city-wide mesh intelligence.
+Packets are captured, decrypted, stored locally, and shown on a real-time dashboard with full chat, node discovery, and radio configuration. Optionally, everything syncs upstream to [Meshradar](https://meshradar.io) for aggregated city-wide mesh intelligence.
 
 ### Standard Node vs Meshpoint
 
 | | Standard Node | Meshpoint |
 |---|---|---|
-| **Radio** | Single transceiver | SX1302 concentrator-grade receiver |
-| **Role** | Participant | Passive observer |
+| **Radio** | Single transceiver | SX1302 concentrator (RX + TX) |
+| **Role** | Participant | Observer + participant |
 | **Packet visibility** | Own traffic | Everything in range |
+| **Messaging** | Phone app only | Full chat from any browser |
 | **Storage** | None | SQLite with retention |
-| **Dashboard** | None | Real-time web UI |
+| **Dashboard** | None | Real-time web UI with radio config |
 
 ---
 
 ## Features
 
-**Dual-protocol capture.** Meshtastic and MeshCore traffic captured simultaneously. The SX1302 concentrator handles Meshtastic reception, while a USB MeshCore companion covers MeshCore on its own frequency.
+**Native mesh messaging.** Send and receive Meshtastic messages directly from the dashboard. Broadcast to channels, DM individual nodes, or reply in conversations. MeshCore messaging supported through the USB companion. The SX1302 handles TX using the same sync word and encryption as the mesh network: phones and nodes see your Meshpoint as a regular participant.
+
+**Full chat UI.** Conversations organized by channel and contact. Signal info (SNR, RSSI) on every received bubble. Duplicate badge shows how many times a relayed message was heard. Channel sidebar with LongFast, custom channels, and DM contacts. Message history persisted in SQLite.
+
+**Radio configuration from the dashboard.** Change region, modem preset, frequency, TX power, and duty cycle without SSH. Add and remove channels with custom PSKs. Toggle TX enable/disable. All settings saved to `local.yaml` and survive restarts.
+
+**Node discovery.** Live node cards showing every node your Meshpoint has heard: name, ID, protocol, hardware model, signal strength, battery, and last seen. Click any node to open a detail drawer with signal history and direct message.
+
+**Dual-protocol capture.** Meshtastic and MeshCore traffic captured simultaneously. The SX1302 concentrator handles Meshtastic, while a USB MeshCore companion covers MeshCore on its own frequency.
 
 **Full packet decoding.** 14 Meshtastic portnums decoded: TEXT, POSITION, NODEINFO, TELEMETRY, ROUTING, ADMIN, WAYPOINT, DETECTION_SENSOR, PAXCOUNTER, STORE_FORWARD, RANGE_TEST, TRACEROUTE, NEIGHBORINFO, and MAP_REPORT. 6 MeshCore message types decoded. Device roles (CLIENT, ROUTER, REPEATER, TRACKER, SENSOR) extracted from NodeInfo.
 
-**Private channel decryption.** Configure your private channel PSKs and the Meshpoint decodes traffic on those channels alongside the default key. Supports any number of channels with AES-128 or AES-256 keys.
+**Multi-channel decryption.** Configure private channel PSKs from the dashboard or `local.yaml`. The Meshpoint decodes traffic on those channels alongside the default key and routes messages to the correct conversation. Supports any number of channels with AES-128 or AES-256 keys.
 
-**6 frequency regions.** US, EU_868, ANZ, IN, KR, and SG_923. Select during setup and the concentrator auto-tunes. MeshCore companion radios configure to match automatically.
+**6 frequency regions.** US, EU_868, ANZ, IN, KR, and SG_923. Select during setup or change from the Radio settings page. MeshCore companion radios configure to match automatically.
 
-**Real-time dashboard.** Live map with node positions, color-coded packet feed with decoded payloads, traffic charts, signal analytics, and 24h active node counts. Accessible from any device on your network.
+**Real-time dashboard.** Live map with node positions, color-coded packet feed with frequency and spreading factor columns, traffic charts, signal analytics, and node cards. Accessible from any device on your network.
 
 **Cloud integration.** Optional WebSocket uplink to [Meshradar](https://meshradar.io) for aggregated multi-site mesh intelligence. Fleet management, city-wide maps, and packet history across all your Meshpoints.
 
 **Dual-protocol MQTT gateway.** Publish captured packets to community MQTT brokers and Home Assistant. Dual-protocol: Meshtastic (protobuf) and MeshCore (JSON) from a single device. Two-gate privacy model ensures private channel data never leaks. Optional JSON publishing, HA auto-discovery, and configurable location precision.
-
-**Smart relay.** Optional re-broadcast of captured packets via a separate SX1262 radio. Deduplication, token-bucket rate limiting, RSSI-based signal filtering. TX path is independent from RX: transmission never blocks reception.
 
 **Auto-detect hardware.** RAK Hotspot V2 and SenseCap M1 identified automatically during setup. MeshCore USB companions auto-detected on `/dev/ttyUSB*` and `/dev/ttyACM*`.
 
@@ -139,13 +146,13 @@ Open `http://<pi-ip>:8080` for the local dashboard.
                                              │
 ┌──────────┐    ┌──────────┐    ┌────────────┴────────────┐
 │Meshtastic│    │ SX1302/  │    │    Meshpoint (Pi 4)      │
-│ packets  │───▶│ SX1303   │───▶│                          │
-│ (OTA)    │    │ RX       │    │  Capture → Decode → API  │
-└──────────┘    └──────────┘    │              │           │
-                                │           Dashboard     │
-┌──────────┐    ┌──────────┐    │          (port 8080)    │
-│ MeshCore │    │  Heltec  │    │                          │
-│ packets  │───▶│  USB     │───▶│                          │
+│ packets  │◀──▶│ SX1303   │◀──▶│                          │
+│ (OTA)    │    │ RX + TX  │    │  Capture → Decode → API  │
+└──────────┘    └──────────┘    │      ▲           │       │
+                                │      │       Dashboard   │
+┌──────────┐    ┌──────────┐    │   Messages    (port 8080)│
+│ MeshCore │    │  Heltec  │    │   + Chat UI              │
+│ packets  │◀──▶│  USB     │◀──▶│                          │
 │ (OTA)    │    │companion │    │                          │
 └──────────┘    └──────────┘    └─────────────────────────┘
 ```
@@ -157,6 +164,7 @@ Open `http://<pi-ip>:8080` for the local dashboard.
 ```bash
 meshpoint status         # service status + config summary
 meshpoint logs           # tail the service journal
+meshpoint report         # full operational report (traffic, signal, system)
 meshpoint restart        # restart the service
 meshpoint meshcore-radio # configure MeshCore companion radio frequency
 sudo meshpoint setup     # re-run config wizard
@@ -176,7 +184,13 @@ FastAPI server on port 8080:
 | `GET /api/analytics/traffic` | Traffic rates and counts |
 | `GET /api/analytics/signal/rssi` | RSSI distribution |
 | `GET /api/device/status` | Device health and uptime |
-| `WS /ws` | Real-time packet stream |
+| `GET /api/config` | Radio, TX, and channel configuration |
+| `PUT /api/config/transmit` | Update TX settings |
+| `PUT /api/config/identity` | Update node ID, long/short name |
+| `PUT /api/config/radio` | Change region, preset, frequency |
+| `POST /api/messages/send` | Send a Meshtastic or MeshCore message |
+| `GET /api/messages/conversations` | Message history by conversation |
+| `WS /ws` | Real-time packet + message stream |
 
 ---
 
@@ -185,11 +199,27 @@ FastAPI server on port 8080:
 ```bash
 cd /opt/meshpoint
 sudo git pull origin main
-sudo /opt/meshpoint/venv/bin/pip install -r requirements.txt
 sudo systemctl restart meshpoint
 ```
 
 The local dashboard shows an orange update indicator when a new version is available.
+
+### Updating to v0.6.0 (one-time steps)
+
+v0.6.0 adds native TX support, which requires a one-time HAL recompile and two config files:
+
+```bash
+cd /opt/meshpoint
+sudo git pull origin main
+sudo bash /opt/meshpoint/scripts/patch_hal.sh
+sudo cp config/sudoers-meshpoint /etc/sudoers.d/meshpoint
+sudo chmod 440 /etc/sudoers.d/meshpoint
+sudo cp scripts/meshpoint.service /etc/systemd/system/meshpoint.service
+sudo systemctl daemon-reload
+sudo systemctl restart meshpoint
+```
+
+`patch_hal.sh` patches the concentrator HAL for Meshtastic-compatible TX sync words and recompiles (takes about 2 minutes). The sudoers rule allows the dashboard to restart the service when you change settings. Both only need to run once. Future updates go back to `git pull` + `restart`.
 
 ---
 
