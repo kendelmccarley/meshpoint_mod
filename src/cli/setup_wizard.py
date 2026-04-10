@@ -7,6 +7,7 @@ naming, GPS configuration, and generates config/local.yaml.
 from __future__ import annotations
 
 import os
+import random
 import socket
 import uuid
 from pathlib import Path
@@ -306,15 +307,38 @@ def _step_relay(config: dict, report: HardwareReport) -> None:
 
 
 def _step_device_id(config: dict, existing: dict | None = None) -> None:
-    """Preserve existing device ID, or generate a new one."""
+    """Preserve existing device/node IDs, or generate new ones."""
+    print("  [8/8] Device identity")
+
     current_id = (existing or {}).get("device", {}).get("device_id")
     if current_id:
         device_id = current_id
-        print(f"  [8/8] Device ID: {device_id} (preserved)")
+        print(f"        Device ID: {device_id} (preserved)")
     else:
         device_id = str(uuid.uuid4())
-        print(f"  [8/8] Device ID: {device_id} (new)")
+        print(f"        Device ID: {device_id} (generated)")
     config.setdefault("device", {})["device_id"] = device_id
+
+    current_node_id = (existing or {}).get("transmit", {}).get("node_id")
+    if current_node_id:
+        print(f"        Node ID:   !{current_node_id:08x} (preserved)")
+        node_id = current_node_id
+    else:
+        node_id = random.randint(0x01000000, 0xFFFFFFFE)
+        print(f"        Node ID:   !{node_id:08x} (generated)")
+
+    device_name = config.get("device", {}).get("device_name", "MPNT")
+    current_long = (existing or {}).get("transmit", {}).get("long_name")
+    current_short = (existing or {}).get("transmit", {}).get("short_name")
+    long_name = current_long or device_name
+    short_name = current_short or device_name[:4].upper()
+
+    tx = config.setdefault("transmit", {})
+    tx["node_id"] = node_id
+    tx["long_name"] = long_name
+    tx["short_name"] = short_name
+    print(f"        Long name: {long_name}")
+    print(f"        Short name: {short_name}")
     print()
 
 
