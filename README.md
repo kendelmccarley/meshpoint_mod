@@ -15,11 +15,13 @@
 [![Last commit](https://img.shields.io/github/last-commit/KMX415/meshpoint)](https://github.com/KMX415/meshpoint/commits/main)
 [![Version](https://img.shields.io/badge/version-0.6.0-orange.svg)](docs/CHANGELOG.md)
 
-![Meshradar Dashboard](dashboard-v3.png)
+![Meshradar Cloud Dashboard](dashboard-v3.png)
 
-![Messaging UI](MessagingUI.png)
+![Local Dashboard](LocalUI.png)
 
-![Meshpoint Log](MP%20Log.png)
+![Messaging](MessagingUI.png)
+
+![Startup Log](MP%20Log.png)
 
 ---
 
