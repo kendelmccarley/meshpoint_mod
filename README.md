@@ -4,7 +4,7 @@
 
 <h1 align="center">Meshpoint</h1>
 
-<p align="center"><strong>Open-source LoRa packet intelligence for Meshtastic and MeshCore mesh networks.</strong><br>Supports US915, EU868, ANZ915, IN865, KR920, and SG923 frequency regions.</p>
+<p align="center"><strong>Open-source Meshtastic base station with native TX/RX, 8-channel concentrator, and browser-based messaging.</strong><br>Runs on Raspberry Pi 4 + SX1302/SX1303. Supports US915, EU868, ANZ915, IN865, KR920, and SG923.</p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
@@ -23,9 +23,9 @@
 
 ## What Is This?
 
-A Raspberry Pi-based LoRa intelligence platform for **Meshtastic** and **MeshCore** mesh networks. The SX1302/SX1303 concentrator provides a dedicated, high-sensitivity LoRa radio front-end for reception, and as of v0.6.0, native Meshtastic transmission: send and receive messages directly from the dashboard.
+A Raspberry Pi-based Meshtastic base station that sends and receives messages through an SX1302/SX1303 concentrator. The concentrator receives on 8 channels simultaneously (SF7-SF12) and transmits natively with up to 27 dBm output. Phones and nodes see it as a regular participant on the mesh.
 
-Packets are captured, decrypted, stored locally, and shown on a real-time dashboard with full chat, node discovery, and radio configuration. Optionally, everything syncs upstream to [Meshradar](https://meshradar.io) for aggregated city-wide mesh intelligence.
+Everything is managed from a browser dashboard: full chat with channels and DMs, node discovery, radio configuration, and live packet feed. Also supports MeshCore traffic through a USB companion. Optionally syncs upstream to [Meshradar](https://meshradar.io) for aggregated multi-site mesh intelligence.
 
 ### Standard Node vs Meshpoint
 
