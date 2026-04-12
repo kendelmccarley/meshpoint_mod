@@ -88,7 +88,7 @@ The easiest path. RAK/MNTD Hotspot V2 miners (model **RAK7248**) include a Pi 4,
 
 <img src="rak7248.png" width="360" alt="RAK7248 Hotspot V2">
 
-Remove the 4 bottom screws to access the SD card slot. Flash a new card with Raspberry Pi OS 64-bit, run the install script, and you have a Meshpoint in a nice aluminum enclosure.
+Remove the black tape covering the SD card slot and carefully remove SD. Flash a new card with Raspberry Pi OS 64-bit, run the install script, and you have a Meshpoint in a nice aluminum enclosure.
 
 ### Option B: SenseCap M1 (~$40-60)
 
