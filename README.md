@@ -16,10 +16,10 @@
 [![Version](https://img.shields.io/badge/version-0.6.1-orange.svg)](docs/CHANGELOG.md)
 
 ### Meshradar Cloud Dashboard
-![Meshradar Cloud Dashboard](dashboard-v3.png)
+![Meshradar Cloud Dashboard](Meshradar414.png)
 
 ### Local Dashboard
-![Local Dashboard](LocalUI.png)
+![Local Dashboard](Meshpoint414.png)
 
 ### Messaging
 ![Messaging](MessagingUI.png)
