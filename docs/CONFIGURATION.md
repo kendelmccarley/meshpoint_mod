@@ -232,7 +232,7 @@ upstream:
 
 When `enabled: false` the Meshpoint never opens an upstream connection and never transmits any packet, heartbeat, or telemetry to meshradar.io. All capture, decoding, dashboard, MQTT, and storage features still work.
 
-> **Note:** the service still requires a valid `auth_token` to be present in your config at startup. The token is verified locally with an offline signature check; no network call is made. This is enforced in `src/config.py::validate_activation()`. Practically, this means you must run the setup wizard once and paste a valid API key, after which you can flip `upstream.enabled: false` and operate fully offline. A standalone "no API key required" mode is on the backlog.
+> **Note:** the service still requires a valid `auth_token` to be present in your config at startup. Run the setup wizard once and paste the API key you received from Meshradar, then flip `upstream.enabled: false` and operate fully offline. A standalone "no API key required" mode is on the backlog.
 
 ---
 
