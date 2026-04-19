@@ -17,12 +17,44 @@ Restart after any config change: `sudo systemctl restart meshpoint`
 ```yaml
 radio:
   region: "US"                 # US, EU_868, ANZ, IN, KR, SG_923
-  frequency_mhz: 906.875      # auto-configured from region
-  spreading_factor: 11         # SF11 (LongFast)
-  bandwidth_khz: 250.0
+  frequency_mhz: 906.875       # override within region's band limits
+  spreading_factor: 11         # 7-12. 11=LongFast, 9=MediumFast, 7=ShortFast/Turbo
+  bandwidth_khz: 250.0         # 125, 250, or 500
+  coding_rate: "4/5"           # 4/5, 4/6, 4/7, 4/8
+  sync_word: 0x2B              # 0x2B = Meshtastic. Don't change unless you know why.
+  preamble_length: 16          # 16 = Meshtastic standard
+  tx_power_dbm: 22             # SX1302 concentrator output power
 ```
 
 The region sets the base frequency, spreading factor, and bandwidth automatically. You only need `region` in most cases. Override `frequency_mhz`, `spreading_factor`, or `bandwidth_khz` individually to tune for non-default presets (MediumFast, ShortFast, etc.) or custom frequency slots.
+
+### Region Defaults and Band Limits
+
+| Region | Default frequency | Allowed band |
+|---|---|---|
+| `US` | 906.875 MHz | 902.0 - 928.0 MHz |
+| `EU_868` | 869.525 MHz | 863.0 - 870.0 MHz |
+| `ANZ` | 919.875 MHz | 915.0 - 928.0 MHz |
+| `IN` | 865.875 MHz | 865.0 - 867.0 MHz |
+| `KR` | 922.875 MHz | 920.0 - 923.0 MHz |
+| `SG_923` | 917.875 MHz | 917.0 - 925.0 MHz |
+
+If `frequency_mhz` falls outside the region's band limits, the service will reject it at startup. Omit `frequency_mhz` entirely to tune to the region default.
+
+### Standard Meshtastic Presets
+
+To match a Meshtastic preset, set `spreading_factor` and `bandwidth_khz` together:
+
+| Preset | SF | BW (kHz) |
+|---|---|---|
+| ShortTurbo | 7 | 500 |
+| ShortFast | 7 | 250 |
+| ShortSlow | 8 | 250 |
+| MediumFast | 9 | 250 |
+| MediumSlow | 10 | 250 |
+| LongFast (default) | 11 | 250 |
+| LongModerate | 11 | 125 |
+| LongSlow | 12 | 125 |
 
 ### Changing Region
 
@@ -48,15 +80,28 @@ See the [Onboarding Guide](ONBOARDING.md#changing-meshcore-radio-frequency) for 
 ```yaml
 capture:
   sources:
-    - concentrator             # SX1302/SX1303 LoRa concentrator
-    - meshcore_usb             # optional MeshCore USB companion
+    - concentrator             # SX1302/SX1303 LoRa concentrator (RAK2287, etc.)
+    - meshcore_usb             # optional MeshCore USB companion node
+    # - serial                 # optional plain Meshtastic USB node as a capture source
+    # - mock                   # optional synthetic packets for development
   meshcore_usb:
     auto_detect: true          # scans /dev/ttyUSB* and /dev/ttyACM*
-    serial_port: null           # or set explicitly: "/dev/ttyACM0"
+    serial_port: null          # or set explicitly: "/dev/ttyACM0"
     baud_rate: 115200
 ```
 
 The setup wizard configures sources automatically. To add or remove a MeshCore companion later, edit `sources` and restart.
+
+**Available source types:**
+
+| Source | Purpose |
+|---|---|
+| `concentrator` | SX1302/SX1303 LoRa concentrator (RAK2287, RAK7248, SenseCap M1) |
+| `meshcore_usb` | MeshCore USB companion node (Heltec V4, T-Beam, RAK4631 with MeshCore firmware) |
+| `serial` | Plain Meshtastic node over USB serial. Used when you don't have a concentrator. |
+| `mock` | Synthetic packet generator for development. Not for production. |
+
+When running both Meshtastic concentrator capture and a MeshCore USB companion, pin `meshcore_usb.serial_port` explicitly. Auto-detect can grab the wrong device when multiple Espressif boards are attached.
 
 ---
 
@@ -90,8 +135,6 @@ meshtastic:
 
 The Meshpoint tries each configured key when decoding a packet. Packets matching any configured key will be fully decoded. Packets on channels with unknown keys will continue to show as ENCRYPTED.
 
-> **MeshCore private channels:** multi-key decryption for MeshCore is on the roadmap but not yet implemented. Currently only the default MeshCore key is tried.
-
 To change the default Meshtastic key (if your primary channel uses a non-default PSK):
 
 ```yaml
@@ -99,9 +142,23 @@ meshtastic:
   default_key_b64: "yourPrimaryKeyBase64=="
 ```
 
+### MeshCore Keys
+
+MeshCore uses its own default channel key, configurable separately:
+
+```yaml
+meshcore:
+  default_key_b64: null              # leave null to use the MeshCore built-in default
+  channel_keys: {}                   # reserved for future multi-channel support
+```
+
+> Multi-key decryption for MeshCore is on the roadmap but not yet implemented. Currently only the default MeshCore key is tried at decode time.
+
 ---
 
 ## Smart Relay
+
+> **Status: experimental.** The smart relay path has not been hardware-validated end-to-end and is not recommended for production use yet. Treat this section as a configuration reference. Hardware-validated relay support will be called out in a release note when it lands.
 
 Connect a separate radio (T-Beam, Heltec, RAK4631) via USB to re-broadcast captured packets:
 
@@ -164,12 +221,18 @@ upstream:
 
 When enabled, the Meshpoint connects to [Meshradar](https://meshradar.io) via WebSocket and relays captured packets for aggregated mesh intelligence. The connection auto-reconnects with backoff and buffers packets locally during outages.
 
-Disable upstream to run fully offline:
+### Running Offline
+
+To run the Meshpoint without sending anything to the cloud, set:
 
 ```yaml
 upstream:
   enabled: false
 ```
+
+When `enabled: false` the Meshpoint never opens an upstream connection and never transmits any packet, heartbeat, or telemetry to meshradar.io. All capture, decoding, dashboard, MQTT, and storage features still work.
+
+> **Note:** the service still requires a valid `auth_token` to be present in your config at startup. The token is verified locally with an offline signature check; no network call is made. This is enforced in `src/config.py::validate_activation()`. Practically, this means you must run the setup wizard once and paste a valid API key, after which you can flip `upstream.enabled: false` and operate fully offline. A standalone "no API key required" mode is on the backlog.
 
 ---
 
@@ -331,3 +394,99 @@ Never add private channel names when publishing to a public broker.
 ## Full Default Config
 
 See [config/default.yaml](../config/default.yaml) for all available settings and their defaults.
+
+---
+
+## Quick Reference: All Sections
+
+A flat overview of every top-level section in `local.yaml`. Use this as a checklist when assembling a custom config.
+
+```yaml
+device:                # name, location, firmware version (mostly wizard-managed)
+  device_id: null
+  device_name: "My Meshpoint"
+  firmware_version: "0.6.4"
+  latitude: null
+  longitude: null
+  altitude: null
+
+radio:                 # LoRa physical layer
+  region: "US"
+  frequency_mhz: 906.875
+  spreading_factor: 11
+  bandwidth_khz: 250.0
+  coding_rate: "4/5"
+  sync_word: 0x2B
+  preamble_length: 16
+  tx_power_dbm: 22
+
+meshtastic:            # Meshtastic protocol settings
+  primary_channel_name: "LongFast"
+  default_key_b64: "1PG7OiApB1nwvP+rz05pAQ=="
+  channel_keys: {}
+  decode_timeout_ms: 100
+
+meshcore:              # MeshCore protocol settings
+  default_key_b64: null
+  channel_keys: {}
+
+capture:               # what packet sources to read from
+  sources:
+    - concentrator
+    - meshcore_usb
+  meshcore_usb:
+    auto_detect: true
+    serial_port: null
+    baud_rate: 115200
+
+transmit:              # native messaging TX (Meshtastic via SX1302, MeshCore via USB)
+  enabled: false
+  node_id: null
+  tx_power_dbm: 14
+  max_duty_cycle_percent: 1.0
+  long_name: "Mesh Point"
+  short_name: "MPNT"
+  hop_limit: 3
+
+relay:                 # experimental: re-broadcast captured packets via USB radio
+  enabled: false
+  serial_port: "/dev/ttyACM1"
+  serial_baud: 115200
+  max_relay_per_minute: 20
+  burst_size: 5
+  min_relay_rssi: -110.0
+  max_relay_rssi: -50.0
+
+upstream:              # cloud (Meshradar) connection
+  enabled: true
+  url: "wss://api.meshradar.io"
+  reconnect_interval_seconds: 10
+  buffer_max_size: 5000
+  auth_token: null     # required at startup, set by setup wizard
+
+mqtt:                  # MQTT publishing (off by default)
+  enabled: false
+  broker: "mqtt.meshtastic.org"
+  port: 1883
+  username: "meshdev"
+  password: "large4cats"
+  topic_root: "msh"
+  region: "US"
+  publish_channels:
+    - "LongFast"
+  publish_json: false
+  location_precision: "exact"
+  homeassistant_discovery: false
+
+storage:               # local SQLite packet store
+  database_path: "data/concentrator.db"
+  max_packets_retained: 100000
+  cleanup_interval_seconds: 3600
+
+dashboard:             # local web UI
+  host: "0.0.0.0"
+  port: 8080
+  static_dir: "frontend"
+```
+
+You only need to put the keys you want to override into `local.yaml`. Every key omitted from `local.yaml` falls back to the value in `config/default.yaml`.
