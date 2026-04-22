@@ -214,6 +214,32 @@ sudo systemctl start meshpoint
 See [Radio Config Explained](RADIO-CONFIG-EXPLAINED.md) for the "why"
 behind each field.
 
+### `ERROR: wrong coding rate (0) - timestamp_counter_correction`
+
+**Cause:** This message is printed by `libloragw_sx1302.c` (Semtech's HAL),
+not by the Meshpoint service. The SX1302 has heard a LoRa preamble on the
+configured frequency where the explicit-header decode did not yield a
+recognised coding rate (1-4). Common sources:
+
+- Non-Meshtastic LoRa neighbours on the band (LoRaWAN gateways and
+  end-devices, weather stations, asset trackers). Most common in suburban
+  and urban deployments.
+- Implicit-header LoRa packets from devices using fixed payload formats.
+- CR_LI (long-interleaver) coding rates from newer SX126x devices that are
+  not in the SX1302 enum.
+- Weak or partially corrupted preambles where the header CRC fails but the
+  FPGA still emits a timing entry.
+
+It interleaves with normal service lines (`loop alive`, `heartbeat sent`,
+`lgw_receive`) because the HAL writes directly to stderr, which journalctl
+merges with the Python logger output.
+
+**Impact:** None. Valid Meshtastic packets with a proper LoRa header
+(CR 4/5 to 4/8) decode normally. This warning specifically means "saw
+something on air, could not classify it, moving on."
+
+**Fix:** None required. Safe to ignore.
+
 ---
 
 ## API and dashboard
