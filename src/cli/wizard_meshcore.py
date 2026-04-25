@@ -2,7 +2,61 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import subprocess
+import time
+from contextlib import contextmanager
+from typing import Iterator
+
 from src.cli.hardware_detect import HardwareReport
+
+logger = logging.getLogger(__name__)
+
+_SERVICE_NAME = "meshpoint"
+_PORT_RELEASE_DELAY_SECONDS = 3
+_REBOOT_VERIFY_DELAY_SECONDS = 8
+
+
+def _is_systemd() -> bool:
+    """Return True when systemd is available to manage the service."""
+    return os.path.isdir("/run/systemd/system")
+
+
+@contextmanager
+def _release_serial_port() -> Iterator[bool]:
+    """Stop the running meshpoint service so the wizard can open the port.
+
+    Yields True if the service was stopped (or systemd is unavailable so the
+    wizard can proceed anyway), False if the stop attempt failed. Restarts
+    the service on exit so a wizard crash never leaves the device down.
+    """
+    if not _is_systemd():
+        yield True
+        return
+
+    print("        Pausing meshpoint service to free the serial port...")
+    stop = subprocess.run(
+        ["sudo", "systemctl", "stop", _SERVICE_NAME],
+        check=False,
+        capture_output=True,
+    )
+    stopped = stop.returncode == 0
+    if not stopped:
+        print("        Could not stop meshpoint service (try 'sudo meshpoint setup').")
+
+    if stopped:
+        time.sleep(_PORT_RELEASE_DELAY_SECONDS)
+
+    try:
+        yield stopped
+    finally:
+        print("        Restarting meshpoint service...")
+        subprocess.run(
+            ["sudo", "systemctl", "restart", _SERVICE_NAME],
+            check=False,
+            capture_output=True,
+        )
 
 
 def maybe_add_meshcore_usb(
@@ -69,9 +123,10 @@ def configure_meshcore_radio(
     If the selected region has a known MeshCore preset (US, EU, ANZ),
     it is applied automatically. Otherwise the user is prompted for
     custom parameters or can skip.
-    """
-    import time
 
+    Stops the meshpoint service first so it does not contend for the
+    serial port, then restarts it before returning.
+    """
     from src.cli.meshcore_radio_config import (
         REGION_PRESETS,
         configure_radio,
@@ -84,68 +139,73 @@ def configure_meshcore_radio(
     if prompt_float_fn is None:
         from src.cli.setup_wizard import _prompt_float as prompt_float_fn
 
-    print("        Querying companion radio settings...")
-    status = query_radio(port)
+    with _release_serial_port():
+        print("        Querying companion radio settings...")
+        status = query_radio(port)
 
-    if status:
+        if not status:
+            print("        Could not read current radio settings.")
+            print("        The companion did not respond on the selected port.")
+            print("        Skipping MeshCore radio configuration -- you can")
+            print("        re-run 'meshpoint meshcore-radio' later.")
+            print()
+            return
+
         model_str = f" ({status.model})" if status.model else ""
         print(f"        Device: {status.name}{model_str}")
         print(f"        Current: {status.summary()}")
-    else:
-        print("        Could not read current radio settings.")
-
-    print()
-
-    meshcore_region_map = {"US": "US", "EU_868": "EU", "ANZ": "ANZ"}
-    auto_preset_key = meshcore_region_map.get(region)
-
-    if auto_preset_key and auto_preset_key in REGION_PRESETS:
-        preset = REGION_PRESETS[auto_preset_key]
-        print(f"        Applying {auto_preset_key} MeshCore preset")
-        print(f"        ({preset.label})")
-        if not confirm_fn("Apply this preset?", default_yes=True):
-            print("        Skipped. Configure manually later if needed.")
-            print()
-            return
-        freq = preset.frequency_mhz
-        bw = preset.bandwidth_khz
-        sf = preset.spreading_factor
-        cr = preset.coding_rate
-    else:
-        print("        No standard MeshCore preset for your region.")
-        print("        Enter custom radio parameters, or skip.")
         print()
-        if not confirm_fn("Enter custom MeshCore radio settings?"):
-            print("        Skipped.")
+
+        meshcore_region_map = {"US": "US", "EU_868": "EU", "ANZ": "ANZ"}
+        auto_preset_key = meshcore_region_map.get(region)
+
+        if auto_preset_key and auto_preset_key in REGION_PRESETS:
+            preset = REGION_PRESETS[auto_preset_key]
+            print(f"        Applying {auto_preset_key} MeshCore preset")
+            print(f"        ({preset.label})")
+            if not confirm_fn("Apply this preset?", default_yes=True):
+                print("        Skipped. Configure manually later if needed.")
+                print()
+                return
+            freq = preset.frequency_mhz
+            bw = preset.bandwidth_khz
+            sf = preset.spreading_factor
+            cr = preset.coding_rate
+        else:
+            print("        No standard MeshCore preset for your region.")
+            print("        Enter custom radio parameters, or skip.")
+            print()
+            if not confirm_fn("Enter custom MeshCore radio settings?"):
+                print("        Skipped.")
+                print()
+                return
+            freq = prompt_float_fn("Frequency MHz (e.g. 910.525):")
+            bw = prompt_float_fn("Bandwidth kHz (e.g. 62.5):")
+            sf_val = prompt_float_fn("Spreading factor (e.g. 7):")
+            cr_val = prompt_float_fn("Coding rate (e.g. 5):")
+            if None in (freq, bw, sf_val, cr_val):
+                print("        Invalid input. Skipping radio configuration.")
+                print()
+                return
+            sf = int(sf_val)
+            cr = int(cr_val)
+
+        print(f"        Setting radio to {freq} MHz / BW{bw} / SF{sf} / CR{cr}...")
+
+        ok = configure_radio(port, freq, bw, sf, cr)
+        if not ok:
+            print("        Failed to configure radio. Check the device and retry.")
             print()
             return
-        freq = prompt_float_fn("Frequency MHz (e.g. 910.525):")
-        bw = prompt_float_fn("Bandwidth kHz (e.g. 62.5):")
-        sf_val = prompt_float_fn("Spreading factor (e.g. 7):")
-        cr_val = prompt_float_fn("Coding rate (e.g. 5):")
-        if None in (freq, bw, sf_val, cr_val):
-            print("        Invalid input. Skipping radio configuration.")
-            print()
-            return
-        sf = int(sf_val)
-        cr = int(cr_val)
 
-    print(f"        Setting radio to {freq} MHz / BW{bw} / SF{sf} / CR{cr}...")
+        print("        Radio configured. Companion is rebooting...")
+        time.sleep(_REBOOT_VERIFY_DELAY_SECONDS)
 
-    ok = configure_radio(port, freq, bw, sf, cr)
-    if not ok:
-        print("        Failed to configure radio. Check the device and retry.")
+        verified = verify_radio(port)
+        if verified:
+            print(f"        Verified: {verified.summary()}")
+        else:
+            print("        Could not verify (device may still be rebooting).")
+            print("        The settings will apply on next power cycle.")
+
         print()
-        return
-
-    print("        Radio configured. Companion is rebooting...")
-    time.sleep(4)
-
-    verified = verify_radio(port)
-    if verified:
-        print(f"        Verified: {verified.summary()}")
-    else:
-        print("        Could not verify (device may still be rebooting).")
-        print("        The settings will apply on next power cycle.")
-
-    print()

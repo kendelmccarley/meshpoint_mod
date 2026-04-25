@@ -15,7 +15,14 @@ from src.storage.message_repository import (
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    # Use a fresh event loop per call. asyncio.get_event_loop() is
+    # deprecated since Python 3.10 and raises RuntimeError when no loop
+    # is current, which happens after IsolatedAsyncioTestCase suites run.
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 class TestMessageRepository(unittest.TestCase):

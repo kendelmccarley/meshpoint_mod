@@ -321,6 +321,85 @@ capture:
 
 Then `sudo systemctl restart meshpoint`.
 
+### `MeshCore companion handshake failed` in the logs
+
+**Cause:** The `meshcore` library opened the serial port but did not get a
+`SELF_INFO` response back from the device within its 5-second handshake
+window. Four common reasons:
+
+1. **The companion just rebooted.** ESP32-S3 needs 6-10 seconds to be
+   USB-ready after a reboot, including the reboot the wizard triggers
+   when it applies a new region preset. The first handshake misses the
+   window. **In recent builds this self-heals:** the source schedules a
+   background reconnect with exponential backoff, so it will recover
+   on its own within 30-50 seconds. Look for `MeshCore USB initial
+   connect failed -- scheduling background reconnect` followed a few
+   seconds later by `MeshCore USB reconnected successfully`. If you do
+   not see those lines, run `cd /opt/meshpoint && sudo git pull origin
+   main && sudo systemctl restart meshpoint`.
+2. **Another process is holding the port.** An older wizard run, a stuck
+   `screen`/`minicom`, or a second copy of the service.
+3. **Wrong firmware variant.** The device is running BLE companion or the
+   Meshtastic firmware, not Companion USB. From the host you cannot tell
+   the difference at the USB layer; both enumerate the same way.
+4. **Incomplete firmware flash on Heltec V4 v4.2/v4.3.** See the next
+   entry.
+
+**Fix (if the source does not self-heal within a minute):**
+
+```bash
+sudo systemctl stop meshpoint
+sleep 5
+meshpoint meshcore-radio   # query and reconfigure
+sudo systemctl start meshpoint
+```
+
+If the CLI still reports "Could not read current radio settings",
+re-flash the device with Companion USB.
+
+### MeshCore reconnects every couple of minutes (health check failing)
+
+**Symptom:** The logs show a healthy initial connect, then every 2-3
+minutes a `MeshCore USB health check failed -- reconnecting` warning
+followed by a full reconnect cycle including a DTR pulse.
+
+**Cause:** A bug in Meshpoint, not in your companion. The old health
+check used `send_device_query` every 120 seconds and treated any
+non-immediate response as "connection dead". The underlying meshcore
+library's command timeout was 5 seconds, shorter than the wrapper
+thought, so a query that legitimately took >5s (because the device was
+mid-RX or mid-message-fetch) was misread as a hung connection.
+
+**Fix:** Pull the latest `main` (`cd /opt/meshpoint && sudo git pull
+origin main && sudo systemctl restart meshpoint`). The health check now
+passes a proper command timeout, skips the active probe when inbound
+events have arrived recently, and tolerates a single transient miss
+before reconnecting.
+
+### Heltec V4 v4.2/v4.3 fails to handshake even after a fresh flash
+
+**Cause:** The stock web flasher at
+[meshcore.io/flasher](https://flasher.meshcore.co.uk/) sometimes ships a
+non-merged image for the v4.2 and v4.3 hardware revisions of the Heltec
+WiFi LoRa 32 V4. The board enumerates over USB and accepts CLI commands
+once, but the next handshake attempt times out. From Meshpoint's side this
+shows up as the wizard succeeding the first time and then every subsequent
+`meshpoint meshcore-radio` failing with "Could not read current radio
+settings".
+
+**Fix:** Flash a known-good merged image for your specific board revision:
+
+1. Identify the revision printed on the silkscreen of your board (v4.1,
+   v4.2, v4.3).
+2. Download the matching merged image from
+   [mcimages.weebl.me](https://mcimages.weebl.me/) (community build,
+   provides per-revision merged binaries).
+3. Flash via `esptool.py` or your usual ESP32 flasher.
+4. Power-cycle the board and re-run `sudo meshpoint setup`.
+
+Stock builds from `meshcore.io` work fine on Heltec V3 and on Heltec V4
+v4.0/v4.1.
+
 ---
 
 ## MQTT
@@ -458,6 +537,29 @@ sudo meshpoint setup
 ```
 
 The wizard writes to `/opt/meshpoint/config/local.yaml`, owned by root.
+
+### Wizard says "Could not read current radio settings" and skips MeshCore
+
+**Cause:** The setup wizard could not get a `SELF_INFO` response from the
+MeshCore companion. Recent builds have the wizard pause
+`meshpoint.service` before opening the port, so the most common cause
+(port contention with the running service) is handled automatically. If
+you still see this message after `git pull`, the device is not
+responding to handshake at all.
+
+**Fix:**
+
+1. Confirm Companion USB firmware is on the device (BLE companion and
+   Meshtastic firmware will both fail this handshake).
+2. Confirm only one MeshCore device is plugged in. Multiple Espressif
+   boards confuse auto-detect.
+3. On Heltec V4 v4.2/v4.3, see "Heltec V4 v4.2/v4.3 fails to handshake
+   even after a fresh flash" above.
+4. Retry: `sudo meshpoint setup` and pick the right port at the
+   "Select MeshCore USB port" step. The wizard will skip MeshCore radio
+   configuration if the handshake still fails, but the rest of setup
+   completes normally and you can re-run `meshpoint meshcore-radio`
+   later.
 
 ### Wizard cannot detect concentrator on a working RAK V2 / SenseCap M1
 

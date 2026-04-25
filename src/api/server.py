@@ -203,8 +203,11 @@ def _build_tx_service(
     )
     meshcore_tx = MeshCoreTxClient()
     mc_source = _find_meshcore_source(coord)
-    if mc_source and mc_source._meshcore:
-        meshcore_tx.set_connection(mc_source._meshcore)
+    if mc_source:
+        # Bind to the live source so reconnects in the capture path
+        # propagate to the dashboard's "MeshCore connected" status and
+        # to outbound send commands.
+        meshcore_tx.set_source(mc_source)
         meshcore_tx.set_post_command_callback(mc_source.restart_auto_fetching)
 
     wrapper = _get_concentrator_wrapper(coord)
