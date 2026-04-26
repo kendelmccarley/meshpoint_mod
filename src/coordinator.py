@@ -275,6 +275,12 @@ class PipelineCoordinator:
             )
             return
 
+        logger.warning(
+            "Relay TX is EXPERIMENTAL and not production-ready. "
+            "Packets may not be re-transmitted correctly. "
+            "See ROADMAP.md for status."
+        )
+
         self._transmitter = MeshtasticTransmitter(self._config.relay)
         self._transmitter.connect()
         self._relay.set_transmit_function(self._transmitter.transmit)

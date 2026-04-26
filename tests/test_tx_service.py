@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from src.config import TransmitConfig
 from src.models.packet import Protocol
 from src.transmit.tx_service import (
     BROADCAST_ADDR_MC,
     BROADCAST_ADDR_MT,
     PRESET_DISPLAY_NAMES,
+    RESERVED_NODE_IDS,
     TxService,
 )
 
@@ -72,6 +75,73 @@ class TestResolveDestination(unittest.TestCase):
     def test_broadcast_constants(self):
         self.assertEqual(BROADCAST_ADDR_MT, 0xFFFFFFFF)
         self.assertEqual(BROADCAST_ADDR_MC, 0xFFFF)
+
+
+class TestResolveNodeId(unittest.TestCase):
+    """``_resolve_node_id`` contract: config wins, derive next, random last."""
+
+    def _build(self, *, node_id=None, device_id=None) -> TxService:
+        cfg = TransmitConfig(enabled=True, node_id=node_id)
+        return TxService(transmit_config=cfg, device_id=device_id)
+
+    def test_config_node_id_wins(self):
+        svc = self._build(node_id=0xDEADBEEF, device_id="some-uuid")
+        self.assertEqual(svc.source_node_id, 0xDEADBEEF)
+
+    def test_derived_from_device_id_is_deterministic(self):
+        device_id = "11111111-2222-3333-4444-555555555555"
+        a = self._build(device_id=device_id)
+        b = self._build(device_id=device_id)
+        self.assertEqual(a.source_node_id, b.source_node_id)
+
+    def test_different_device_ids_produce_different_node_ids(self):
+        a = self._build(device_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        b = self._build(device_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        self.assertNotEqual(a.source_node_id, b.source_node_id)
+
+    def test_random_fallback_when_no_config_no_device_id(self):
+        svc = self._build(node_id=None, device_id=None)
+        self.assertNotIn(svc.source_node_id, RESERVED_NODE_IDS)
+        self.assertGreaterEqual(svc.source_node_id, 1)
+        self.assertLessEqual(svc.source_node_id, 0xFFFFFFFE)
+
+    def test_reserved_config_value_falls_through(self):
+        """A config node_id of 0 or 0xFFFFFFFF should not be honored."""
+        for reserved in RESERVED_NODE_IDS:
+            with self.subTest(reserved=reserved):
+                svc = self._build(node_id=reserved, device_id="some-uuid")
+                self.assertNotIn(svc.source_node_id, RESERVED_NODE_IDS)
+
+    def test_derive_skips_reserved_in_first_word(self):
+        """If sha256[:4] hits 0x00000000, derive must skip to next word."""
+        zero = (0).to_bytes(4, "big")
+        nonzero = (0x01234567).to_bytes(4, "big")
+        digest = zero + nonzero + b"\x00" * 24
+        with patch(
+            "hashlib.sha256",
+            return_value=type("D", (), {"digest": lambda self: digest})(),
+        ):
+            value = TxService._derive_node_id("anything")
+        self.assertEqual(value, 0x01234567)
+
+    def test_derive_skips_reserved_broadcast(self):
+        """If sha256[:4] hits 0xFFFFFFFF, derive must skip to next word."""
+        broadcast = (0xFFFFFFFF).to_bytes(4, "big")
+        nonzero = (0x42424242).to_bytes(4, "big")
+        digest = broadcast + nonzero + b"\x00" * 24
+        with patch(
+            "hashlib.sha256",
+            return_value=type("D", (), {"digest": lambda self: digest})(),
+        ):
+            value = TxService._derive_node_id("anything")
+        self.assertEqual(value, 0x42424242)
+
+    def test_random_non_reserved_never_returns_reserved(self):
+        for _ in range(100):
+            value = TxService._random_non_reserved()
+            self.assertNotIn(value, RESERVED_NODE_IDS)
+            self.assertGreaterEqual(value, 0)
+            self.assertLessEqual(value, 0xFFFFFFFF)
 
 
 if __name__ == "__main__":

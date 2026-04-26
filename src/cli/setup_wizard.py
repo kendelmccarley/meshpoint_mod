@@ -7,8 +7,8 @@ naming, GPS configuration, and generates config/local.yaml.
 from __future__ import annotations
 
 import os
-import random
 import socket
+import sys
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -20,6 +20,7 @@ from src.cli.hardware_detect import (
     detect_all,
     print_report,
 )
+from src.transmit.tx_service import TxService
 
 LOCAL_CONFIG_PATH = Path("config/local.yaml")
 CLOUD_URL = "https://meshradar.io"
@@ -37,14 +38,65 @@ def _load_existing_config() -> dict:
         return {}
 
 
+def _preflight_check() -> None:
+    """Bail out before any prompts if we can't write the config later.
+
+    Catches the common failure where a user runs ``meshpoint setup`` from
+    the wrong directory or without ``sudo`` and only learns about it
+    after answering all eight wizard questions.
+    """
+    config_dir = LOCAL_CONFIG_PATH.parent
+    target = LOCAL_CONFIG_PATH
+
+    if not config_dir.exists():
+        print(
+            f"\n  ERROR: {config_dir.resolve()} does not exist."
+        )
+        print("  Run this command from /opt/meshpoint or the repo root.\n")
+        sys.exit(1)
+
+    try:
+        with target.open("a"):
+            pass
+    except PermissionError:
+        print(f"\n  ERROR: cannot write to {target.resolve()}.")
+        print("  Run with sudo:")
+        print("    sudo /opt/meshpoint/venv/bin/meshpoint setup\n")
+        sys.exit(1)
+    except OSError as exc:
+        print(f"\n  ERROR: cannot prepare {target.resolve()}: {exc}\n")
+        sys.exit(1)
+
+
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Recursively merge ``overlay`` onto ``base`` and return a new dict.
+
+    Sub-dicts are merged key-by-key so overlay values overwrite the
+    matching base values without dropping siblings the overlay doesn't
+    mention. Lists and scalars in the overlay replace whatever is in the
+    base. Used to preserve hand-edited sections of ``local.yaml`` (mqtt,
+    custom relay knobs, channel keys, etc.) when re-running the wizard.
+    """
+    result = dict(base)
+    for key, value in overlay.items():
+        existing_value = result.get(key)
+        if isinstance(existing_value, dict) and isinstance(value, dict):
+            result[key] = _deep_merge(existing_value, value)
+        else:
+            result[key] = value
+    return result
+
+
 def run_setup() -> None:
     """Main entry point for the interactive setup wizard."""
+    _preflight_check()
     _print_banner()
 
     existing = _load_existing_config()
     if existing:
         print("  Existing config/local.yaml found.")
         print("  Press Enter at any prompt to keep the current value.")
+        print("  Untouched sections (mqtt, channel keys, etc.) are preserved.")
         print()
 
     config: dict = {}
@@ -58,7 +110,8 @@ def run_setup() -> None:
     _step_relay(config, report)
     _step_device_id(config, existing)
 
-    _write_config(config)
+    merged = _deep_merge(existing, config)
+    _write_config(merged)
     _step_start_service()
 
 
@@ -307,25 +360,25 @@ def _step_relay(config: dict, report: HardwareReport) -> None:
 
 
 def _step_device_id(config: dict, existing: dict | None = None) -> None:
-    """Preserve existing device/node IDs, or generate new ones."""
+    """Preserve existing device/node IDs, or generate stable new ones."""
     print("  [8/8] Device identity")
 
     current_id = (existing or {}).get("device", {}).get("device_id")
     if current_id:
         device_id = current_id
-        print(f"        Device ID: {device_id} (preserved)")
+        device_id_origin = "preserved"
     else:
         device_id = str(uuid.uuid4())
-        print(f"        Device ID: {device_id} (generated)")
+        device_id_origin = "generated"
     config.setdefault("device", {})["device_id"] = device_id
 
     current_node_id = (existing or {}).get("transmit", {}).get("node_id")
-    if current_node_id:
-        print(f"        Node ID:   !{current_node_id:08x} (preserved)")
+    if current_node_id and current_node_id not in (0x00000000, 0xFFFFFFFF):
         node_id = current_node_id
+        node_id_origin = "preserved"
     else:
-        node_id = random.randint(0x01000000, 0xFFFFFFFE)
-        print(f"        Node ID:   !{node_id:08x} (generated)")
+        node_id = TxService._derive_node_id(device_id)
+        node_id_origin = "derived from device_id"
 
     device_name = config.get("device", {}).get("device_name", "MPNT")
     current_long = (existing or {}).get("transmit", {}).get("long_name")
@@ -337,8 +390,17 @@ def _step_device_id(config: dict, existing: dict | None = None) -> None:
     tx["node_id"] = node_id
     tx["long_name"] = long_name
     tx["short_name"] = short_name
-    print(f"        Long name: {long_name}")
-    print(f"        Short name: {short_name}")
+
+    print()
+    print("        Meshpoint identity (advertised on the mesh):")
+    print(f"          Device ID:  {device_id}  ({device_id_origin})")
+    print(f"          Node ID:    !{node_id:08x}  ({node_id_origin})")
+    print(f"          Long name:  {long_name}")
+    print(f"          Short name: {short_name}")
+    print()
+    print("        You can change these from the dashboard radio tab")
+    print("        or by editing config/local.yaml. Identity changes")
+    print("        require restarting the meshpoint service.")
     print()
 
 

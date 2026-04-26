@@ -7,8 +7,10 @@ for Meshtastic, USB/TCP companion for MeshCore.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import random
+import secrets
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -20,6 +22,12 @@ logger = logging.getLogger(__name__)
 
 BROADCAST_ADDR_MT = 0xFFFFFFFF
 BROADCAST_ADDR_MC = 0xFFFF
+
+RESERVED_NODE_IDS: frozenset[int] = frozenset({0x00000000, 0xFFFFFFFF})
+
+PORTNUM_NODEINFO = 4
+HW_MODEL_PRIVATE_HW = 255
+NODEINFO_HOP_LIMIT = 3
 
 PRESET_DISPLAY_NAMES: dict[tuple[int, int], str] = {
     (7, 250): "ShortFast",
@@ -59,6 +67,7 @@ class TxService:
         duty_tracker: Optional[DutyCycleTracker] = None,
         radio_config=None,
         primary_channel_name: str = "",
+        device_id: Optional[str] = None,
     ):
         self._wrapper = wrapper
         self._crypto = crypto
@@ -68,6 +77,7 @@ class TxService:
         self._duty = duty_tracker
         self._radio_config = radio_config
         self._primary_channel_name = primary_channel_name
+        self._device_id = device_id
         self._builder = None
         self._packet_counter = random.randint(1, 0xFFFF)
         self._source_node_id = self._resolve_node_id()
@@ -107,6 +117,101 @@ class TxService:
             return SendResult(
                 success=False, error=f"Unknown protocol: {protocol}"
             )
+
+    async def send_nodeinfo(
+        self,
+        long_name: str,
+        short_name: str,
+        hw_model: int = HW_MODEL_PRIVATE_HW,
+    ) -> SendResult:
+        """Broadcast a Meshtastic NodeInfo packet announcing this Meshpoint.
+
+        Lets recipient Meshtastic clients form a stable contact entry so
+        DMs route to/from the Meshpoint correctly. Uses the same
+        ``source_node_id`` as outbound text messages.
+        """
+        if not self.meshtastic_enabled:
+            return SendResult(
+                success=False,
+                protocol="meshtastic",
+                error="Meshtastic TX not available",
+            )
+
+        builder = self._get_builder()
+        if builder is None or not hasattr(builder, "build_nodeinfo"):
+            return SendResult(
+                success=False,
+                protocol="meshtastic",
+                error="NodeInfo builder unavailable",
+            )
+
+        packet_id = self._next_packet_id()
+        channel_hash, channel_key = self._resolve_channel(0)
+
+        try:
+            packet_bytes = builder.build_nodeinfo(
+                source_id=self._source_node_id,
+                packet_id=packet_id,
+                long_name=long_name,
+                short_name=short_name,
+                hw_model=hw_model,
+                channel_key=channel_key,
+                channel_hash=channel_hash,
+                hop_limit=NODEINFO_HOP_LIMIT,
+                hop_start=NODEINFO_HOP_LIMIT,
+            )
+        except Exception as exc:
+            logger.exception("NodeInfo build failed")
+            return SendResult(
+                success=False,
+                protocol="meshtastic",
+                packet_id=f"{packet_id:08x}",
+                error=f"NodeInfo build failed: {exc}",
+            )
+
+        if packet_bytes is None:
+            return SendResult(
+                success=False,
+                protocol="meshtastic",
+                packet_id=f"{packet_id:08x}",
+                error="NodeInfo packet build returned None",
+            )
+
+        logger.info(
+            "TX NodeInfo: src=%08x id=%08x long=%r short=%r len=%d",
+            self._source_node_id, packet_id, long_name, short_name,
+            len(packet_bytes),
+        )
+
+        tx_pkt = self._build_hal_packet(packet_bytes)
+        airtime_ms = await self._get_airtime(tx_pkt)
+
+        if self._duty and not self._duty.check_budget(airtime_ms):
+            return SendResult(
+                success=False,
+                protocol="meshtastic",
+                packet_id=f"{packet_id:08x}",
+                error="Duty cycle limit reached",
+                airtime_ms=airtime_ms,
+            )
+
+        result_code = await asyncio.to_thread(self._wrapper.send, tx_pkt)
+        if result_code == 0:
+            if self._duty:
+                self._duty.record_tx(airtime_ms)
+            return SendResult(
+                success=True,
+                protocol="meshtastic",
+                packet_id=f"{packet_id:08x}",
+                timestamp=time.time(),
+                airtime_ms=airtime_ms,
+            )
+        return SendResult(
+            success=False,
+            protocol="meshtastic",
+            packet_id=f"{packet_id:08x}",
+            error=f"lgw_send returned {result_code}",
+        )
 
     async def _send_meshtastic(
         self,
@@ -320,14 +425,59 @@ class TxService:
         return self._packet_counter
 
     def _resolve_node_id(self) -> int:
-        """Get or generate a 4-byte Meshtastic node ID."""
-        if (
-            self._config is not None
-            and self._config.node_id is not None
-            and self._config.node_id != 0
-        ):
-            return self._config.node_id
-        return random.randint(0x01000000, 0xFFFFFFFE)
+        """Resolve the 4-byte Meshtastic source node ID.
+
+        Priority:
+          1. ``transmit.node_id`` from config (user override).
+          2. Deterministic derivation from ``device.device_id`` so the
+             ID stays the same across service restarts.
+          3. CSPRNG fallback (rare: only legacy installs that never ran
+             the wizard and have no device_id).
+        """
+        configured = self._config.node_id if self._config is not None else None
+        if configured is not None and configured not in RESERVED_NODE_IDS:
+            logger.info(
+                "source_node_id=0x%08x (source: config)", configured
+            )
+            return configured
+
+        if self._device_id:
+            value = self._derive_node_id(self._device_id)
+            logger.info(
+                "source_node_id=0x%08x (source: device_id, "
+                "stable across restarts)",
+                value,
+            )
+            return value
+
+        value = self._random_non_reserved()
+        logger.warning(
+            "source_node_id=0x%08x (source: RANDOM, will change on every "
+            "restart). Set transmit.node_id in local.yaml or run "
+            "`meshpoint setup` for a stable identity.",
+            value,
+        )
+        return value
+
+    @staticmethod
+    def _derive_node_id(device_id: str) -> int:
+        """Derive a 32-bit node_id from device_id, skipping reserved values."""
+        digest = hashlib.sha256(device_id.encode("utf-8")).digest()
+        for offset in range(0, 28, 4):
+            value = int.from_bytes(digest[offset:offset + 4], "big")
+            if value not in RESERVED_NODE_IDS:
+                return value
+        raise RuntimeError(
+            "sha256 produced 7 reserved values in a row for device_id"
+        )
+
+    @staticmethod
+    def _random_non_reserved() -> int:
+        """Cryptographically random 32-bit node_id avoiding reserved values."""
+        while True:
+            value = secrets.randbits(32)
+            if value not in RESERVED_NODE_IDS:
+                return value
 
     def _resolve_channel(self, channel: int) -> tuple[int, bytes | None]:
         """Resolve channel index to (hash, encryption_key).

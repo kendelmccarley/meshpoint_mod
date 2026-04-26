@@ -126,6 +126,38 @@ class DatabaseManager:
             )
             logger.info("Migration: added rx_count column to messages table")
 
+        await self._cleanup_cross_protocol_name_contamination()
+
+    async def _cleanup_cross_protocol_name_contamination(self) -> None:
+        """Repair Meshtastic node rows whose long_name was overwritten by a
+        MeshCore contact name due to the unscoped fallback in versions <0.6.7.
+
+        Idempotent: only matches rows where a Meshtastic long_name exactly
+        matches a long_name on a `mc:%` MeshCore row (the canonical source of
+        contamination). The Meshtastic row is reset to NULL so the next
+        NodeInfo broadcast from the real node repopulates it correctly.
+        """
+        cursor = await self._connection.execute(
+            """
+            UPDATE nodes
+            SET long_name = NULL
+            WHERE protocol = 'meshtastic'
+              AND long_name IS NOT NULL
+              AND long_name IN (
+                  SELECT long_name FROM nodes
+                  WHERE protocol = 'meshcore'
+                    AND node_id LIKE 'mc:%'
+                    AND long_name IS NOT NULL
+              )
+            """
+        )
+        if cursor.rowcount and cursor.rowcount > 0:
+            logger.warning(
+                "Migration: cleared %d cross-protocol contaminated Meshtastic "
+                "node row(s); long_name will be repopulated on next NodeInfo",
+                cursor.rowcount,
+            )
+
     async def disconnect(self) -> None:
         if self._connection:
             await self._connection.close()

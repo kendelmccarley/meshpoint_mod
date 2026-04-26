@@ -19,6 +19,7 @@ from src.log_format import print_banner, print_packet, setup_logging
 from src.models.device_identity import DeviceIdentity, _stable_device_id
 from src.models.packet import Packet
 from src.storage.message_repository import MessageRepository
+from src.transmit.nodeinfo_broadcaster import NodeInfoBroadcaster
 from src.transmit.tx_service import TxService
 
 setup_logging()
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 ws_manager = WebSocketManager()
 pipeline: PipelineCoordinator | None = None
 upstream: UpstreamClient | None = None
+nodeinfo_broadcaster: NodeInfoBroadcaster | None = None
 
 
 def create_app(config: AppConfig | None = None) -> FastAPI:
@@ -35,7 +37,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        global pipeline, upstream
+        global pipeline, upstream, nodeinfo_broadcaster
         validate_activation(config)
         identity = DeviceIdentity(
             device_id=_stable_device_id(config.device.device_id),
@@ -77,10 +79,16 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         pipeline.on_packet(upstream.send_packet)
         await upstream.start()
 
+        nodeinfo_broadcaster = _build_nodeinfo_broadcaster(config, tx_service)
+        if nodeinfo_broadcaster is not None:
+            await nodeinfo_broadcaster.start()
+
         _init_routes(pipeline, config, identity, tx_service, message_repo)
         print_banner(config)
         logger.info("Mesh Point started -- listening for packets")
         yield
+        if nodeinfo_broadcaster is not None:
+            await nodeinfo_broadcaster.stop()
         await upstream.stop()
         await pipeline.stop()
         logger.info("Mesh Point stopped")
@@ -223,12 +231,37 @@ def _build_tx_service(
         duty_tracker=duty,
         radio_config=config.radio,
         primary_channel_name=config.meshtastic.primary_channel_name,
+        device_id=config.device.device_id,
     )
     logger.info(
         "Transmit service ready: MT=%s MC=%s",
         tx_svc.meshtastic_enabled, tx_svc.meshcore_enabled,
     )
     return tx_svc
+
+
+def _build_nodeinfo_broadcaster(
+    config: AppConfig, tx_service: TxService | None
+) -> NodeInfoBroadcaster | None:
+    """Schedule periodic NodeInfo broadcasts when Meshtastic TX is live.
+
+    Returns ``None`` when transmit is disabled, the TX service is
+    unavailable, or the radio backend isn't ready, so callers can skip
+    start/stop without a guard.
+    """
+    if tx_service is None or not config.transmit.enabled:
+        return None
+    if not tx_service.meshtastic_enabled:
+        logger.info(
+            "NodeInfo broadcaster skipped: Meshtastic TX backend "
+            "not available"
+        )
+        return None
+    return NodeInfoBroadcaster(
+        tx_service=tx_service,
+        long_name=config.transmit.long_name,
+        short_name=config.transmit.short_name,
+    )
 
 
 RAK2287_TX_GAIN_LUT = [
@@ -487,8 +520,8 @@ def _setup_message_interception(
                     node_name = resolved_name
                 node_id = _normalize_mc_node_id(node_id)
             if (
-                is_broadcast
-                and packet.protocol == Protocol.MESHTASTIC
+                packet.protocol == Protocol.MESHTASTIC
+                and direction == "received"
                 and not node_name
             ):
                 src_id = (packet.source_id or "").lower()
@@ -525,7 +558,10 @@ def _setup_message_interception(
                     )
                     await coord.node_repo._db.commit()
 
-            if not node_name or _is_hex_only(node_name):
+            if (
+                packet.protocol == Protocol.MESHCORE
+                and (not node_name or _is_hex_only(node_name))
+            ):
                 row = await coord.node_repo._db.fetch_one(
                     "SELECT long_name FROM nodes "
                     "WHERE LOWER(node_id) LIKE ? AND protocol = 'meshcore' "
@@ -537,13 +573,10 @@ def _setup_message_interception(
                     if rn and not _is_hex_only(rn):
                         node_name = rn
 
-            # MeshCore companions don't include friendly names in DM events
-            # or pubkeys in channel messages. The mc:{name} node entries
-            # created by channel messages are the only source of friendly
-            # names. This fallback finds them and writes back to the pubkey
-            # node entry. Requires at least one prior public channel message
-            # from the contact.
-            if not node_name or _is_hex_only(node_name):
+            if (
+                packet.protocol == Protocol.MESHCORE
+                and (not node_name or _is_hex_only(node_name))
+            ):
                 mc_row = await coord.node_repo._db.fetch_one(
                     "SELECT node_id, long_name FROM nodes "
                     "WHERE node_id LIKE 'mc:%' AND protocol = 'meshcore' "

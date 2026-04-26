@@ -11,6 +11,59 @@ custom slots, narrowband experiments, or regulatory compliance.
 
 ---
 
+## Identity (`transmit.node_id`, `transmit.long_name`, `transmit.short_name`)
+
+**What it is.** Three fields that together make up the Meshpoint's identity
+on the Meshtastic mesh. The `node_id` is the 32-bit integer other nodes use
+to address packets to you (rendered as `!xxxxxxxx` in firmware UIs). The
+`long_name` and `short_name` are what appears in the recipient's contact
+list when your NodeInfo broadcast lands.
+
+**Why it matters.** Meshtastic clients only thread direct messages through
+contacts they know about, and they only learn about contacts via NodeInfo
+packets. If your `node_id` shifts between restarts, every restart looks like
+a brand new node from the recipient's point of view, and DMs sent back to
+the "old" Meshpoint go nowhere. Pre-v0.6.7 Meshpoints had this exact bug;
+v0.6.7 makes the identity stable.
+
+**Resolution priority** (first match wins, evaluated at service startup):
+
+1. `transmit.node_id` set explicitly in `config/local.yaml` (or via the
+   dashboard radio tab, which writes the same field).
+2. **Derived** from `device.device_id` (your provisioned UUID) using
+   SHA-256, then taking the first 4 bytes as a 32-bit unsigned integer.
+   Reserved values `0x00000000` and `0xFFFFFFFF` are explicitly skipped.
+   This path is deterministic: the same `device_id` always produces the
+   same `node_id`, so restarts are stable.
+3. **Cryptographically random** fallback (`secrets.randbits(32)`) if
+   neither is set. The startup log will WARN when this happens because it
+   means your identity will not survive a restart.
+
+**How to change it.** Three equivalent ways:
+
+- **Dashboard:** Settings -> Radio -> Identity -> Save. Overwrites the
+  `transmit.*` block in `local.yaml`.
+- **Wizard:** `meshpoint setup` walks through identity prompts in the
+  Device step and prints the resolved values before saving.
+- **YAML edit:** open `config/local.yaml` in your editor and edit the
+  `transmit.node_id`, `transmit.long_name`, and `transmit.short_name`
+  fields directly.
+
+**Identity changes require a service restart.** The resolved `source_node_id`
+is captured once at startup and reused for the lifetime of the process, both
+for outbound DMs/text and the periodic NodeInfo broadcast. After editing,
+either:
+
+```bash
+sudo systemctl restart meshpoint
+```
+
+or use the **Restart** button on the dashboard Settings page. The next
+NodeInfo broadcast (within 60 seconds of restart, then every 30 minutes)
+will publish your new identity to the mesh.
+
+---
+
 ## Region
 
 The first thing the setup wizard asks. The region selects:

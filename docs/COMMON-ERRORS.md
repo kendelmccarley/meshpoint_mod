@@ -11,6 +11,51 @@ If your error is not listed, capture it from `meshpoint logs` and open a
 
 ---
 
+## Messaging
+
+### Meshtastic DM shows "Sent" but recipient never gets it
+
+**Cause:** Pre-v0.6.7 Meshpoints chose a random `source_node_id` on every
+service restart and never broadcast NodeInfo, so the recipient node had no
+stable contact for the Meshpoint and could not route the DM back. The
+dashboard showed "Sent" because the packet did go out over the air; the
+recipient just had no way to associate it with a known node.
+
+**Fix:** Update to v0.6.7 or later. The Meshpoint now derives a stable
+`source_node_id` from its provisioned `device.device_id` UUID and broadcasts
+a NodeInfo packet 60 seconds after startup, then every 30 minutes. After the
+first NodeInfo lands on the witness Meshtastic node, it will form a contact
+and DMs round-trip correctly. If your witness node was offline when the
+NodeInfo went out, it picks up the next one.
+
+If you previously worked around this by setting `transmit.node_id` manually
+in `local.yaml` or via the dashboard radio tab, that value still wins (the
+config setting is the highest-priority source). No action needed.
+
+### Two Meshpoints with the same node ID breaking the mesh
+
+**Cause:** You cloned an SD card via `dd` (or `Win32DiskImager`, or any
+block-level imager) without re-running `scripts/provision.py` on the clone.
+Both Meshpoints now share the same `device.device_id` UUID, which means the
+v0.6.7 derivation produces the same `source_node_id` on both, which means
+Meshtastic mesh routing collapses for any node trying to reach either of
+them.
+
+**Fix:** On the cloned card, re-provision before first boot:
+
+```bash
+sudo python /opt/meshpoint/scripts/provision.py
+```
+
+This generates a fresh UUID and re-writes the cloud API key, hostname, and
+device ID. Alternatively, set distinct `transmit.node_id` values in each
+Meshpoint's `local.yaml` to override the derivation.
+
+When the "Golden SD image" production workflow lands (see ROADMAP.md) it
+will include an automatic first-boot re-provision step to prevent this.
+
+---
+
 ## Install and pip
 
 ### `error: externally-managed-environment`
