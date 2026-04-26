@@ -17,7 +17,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from src.transmit.tx_service import HW_MODEL_PRIVATE_HW, TxService
+from src.transmit.tx_service import HW_MODEL_PORTDUINO, TxService
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class NodeInfoBroadcaster:
         *,
         startup_delay_seconds: int = DEFAULT_STARTUP_DELAY_SECONDS,
         interval_seconds: int = DEFAULT_INTERVAL_SECONDS,
-        hw_model: int = HW_MODEL_PRIVATE_HW,
+        hw_model: int = HW_MODEL_PORTDUINO,
     ):
         self._tx = tx_service
         self._long_name = long_name

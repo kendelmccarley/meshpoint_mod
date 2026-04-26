@@ -27,6 +27,7 @@ RESERVED_NODE_IDS: frozenset[int] = frozenset({0x00000000, 0xFFFFFFFF})
 
 PORTNUM_NODEINFO = 4
 HW_MODEL_PRIVATE_HW = 255
+HW_MODEL_PORTDUINO = 37
 NODEINFO_HOP_LIMIT = 3
 
 PRESET_DISPLAY_NAMES: dict[tuple[int, int], str] = {
@@ -68,6 +69,7 @@ class TxService:
         radio_config=None,
         primary_channel_name: str = "",
         device_id: Optional[str] = None,
+        persist_derived_node_id: bool = True,
     ):
         self._wrapper = wrapper
         self._crypto = crypto
@@ -80,7 +82,10 @@ class TxService:
         self._device_id = device_id
         self._builder = None
         self._packet_counter = random.randint(1, 0xFFFF)
+        self._node_id_source: str = "random"
         self._source_node_id = self._resolve_node_id()
+        if persist_derived_node_id:
+            self._persist_derived_node_id_if_needed()
 
     @property
     def meshtastic_enabled(self) -> bool:
@@ -97,6 +102,11 @@ class TxService:
     @property
     def source_node_id(self) -> int:
         return self._source_node_id
+
+    @property
+    def node_id_source(self) -> str:
+        """Where the resolved node_id came from: 'config', 'derived', or 'random'."""
+        return self._node_id_source
 
     async def send_text(
         self,
@@ -436,6 +446,7 @@ class TxService:
         """
         configured = self._config.node_id if self._config is not None else None
         if configured is not None and configured not in RESERVED_NODE_IDS:
+            self._node_id_source = "config"
             logger.info(
                 "source_node_id=0x%08x (source: config)", configured
             )
@@ -443,6 +454,7 @@ class TxService:
 
         if self._device_id:
             value = self._derive_node_id(self._device_id)
+            self._node_id_source = "derived"
             logger.info(
                 "source_node_id=0x%08x (source: device_id, "
                 "stable across restarts)",
@@ -451,6 +463,7 @@ class TxService:
             return value
 
         value = self._random_non_reserved()
+        self._node_id_source = "random"
         logger.warning(
             "source_node_id=0x%08x (source: RANDOM, will change on every "
             "restart). Set transmit.node_id in local.yaml or run "
@@ -458,6 +471,33 @@ class TxService:
             value,
         )
         return value
+
+    def _persist_derived_node_id_if_needed(self) -> None:
+        """Write the auto-derived node_id back to local.yaml so the dashboard
+        and runtime stay in sync.
+
+        Only fires when the source is ``derived`` (auto-computed from
+        device_id). Pinned values are already on disk; ``random`` is a
+        transient warning state we deliberately don't lock in.
+        """
+        if self._node_id_source != "derived":
+            return
+        try:
+            from src.config import save_section_to_yaml
+            save_section_to_yaml("transmit", {"node_id": self._source_node_id})
+            logger.info(
+                "Persisted auto-derived node_id=0x%08x to local.yaml",
+                self._source_node_id,
+            )
+            if self._config is not None:
+                self._config.node_id = self._source_node_id
+            self._node_id_source = "config"
+        except Exception as exc:
+            logger.warning(
+                "Could not persist auto-derived node_id (continuing with "
+                "in-memory value): %s",
+                exc,
+            )
 
     @staticmethod
     def _derive_node_id(device_id: str) -> int:

@@ -117,6 +117,7 @@ class RadioSettings {
     _renderIdentity(c) {
         const el = document.getElementById('radio-identity');
         const tx = c.transmit;
+        const sourceHint = this._nodeIdSourceHint(tx.node_id_source);
 
         el.innerHTML = `
             <h3 class="radio-card__title">Node Identity</h3>
@@ -124,6 +125,7 @@ class RadioSettings {
                 <label class="radio-label">Node ID</label>
                 <input class="radio-input radio-input--mono" id="radio-node-id" value="${tx.node_id_hex || ''}" placeholder="!aabbccdd" maxlength="10">
             </div>
+            ${sourceHint ? `<div class="radio-hint">${sourceHint}</div>` : ''}
             <div class="radio-field">
                 <label class="radio-label">Long Name</label>
                 <input class="radio-input" id="radio-long-name" value="${this._esc(tx.long_name || '')}" maxlength="36">
@@ -380,6 +382,13 @@ class RadioSettings {
         const el = document.createElement('span');
         el.textContent = str || '';
         return el.innerHTML;
+    }
+
+    _nodeIdSourceHint(source) {
+        if (source === 'config') return 'Pinned in local.yaml. Edit to override.';
+        if (source === 'derived') return 'Auto-derived from device ID. Could not persist to local.yaml (check file permissions); saving will retry.';
+        if (source === 'random') return 'Random fallback (no device ID configured). Set a value above and save for a stable identity.';
+        return '';
     }
 }
 

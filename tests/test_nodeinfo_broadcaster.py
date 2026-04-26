@@ -142,6 +142,35 @@ class TestNodeInfoBroadcasterLifecycle(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx.calls[0]["long_name"], "MyMeshpoint")
         self.assertEqual(tx.calls[0]["short_name"], "MMP1")
 
+    async def test_default_hw_model_is_portduino(self):
+        """v0.6.7 shipped PRIVATE_HW which renders as 'Private' on community maps."""
+        from src.transmit.tx_service import HW_MODEL_PORTDUINO
+        tx = _FakeTxService(results=[_ok()])
+        b = NodeInfoBroadcaster(
+            tx, "Long", "SHRT",
+            startup_delay_seconds=0,
+            interval_seconds=10_000,
+        )
+        await b.start()
+        await asyncio.sleep(0.05)
+        await b.stop()
+        self.assertEqual(tx.calls[0]["hw_model"], HW_MODEL_PORTDUINO)
+        self.assertEqual(tx.calls[0]["hw_model"], 37)
+
+    async def test_hw_model_override_respected(self):
+        from src.transmit.tx_service import HW_MODEL_PRIVATE_HW
+        tx = _FakeTxService(results=[_ok()])
+        b = NodeInfoBroadcaster(
+            tx, "Long", "SHRT",
+            startup_delay_seconds=0,
+            interval_seconds=10_000,
+            hw_model=HW_MODEL_PRIVATE_HW,
+        )
+        await b.start()
+        await asyncio.sleep(0.05)
+        await b.stop()
+        self.assertEqual(tx.calls[0]["hw_model"], HW_MODEL_PRIVATE_HW)
+
 
 if __name__ == "__main__":
     unittest.main()

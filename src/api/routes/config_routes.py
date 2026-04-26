@@ -84,7 +84,17 @@ async def get_config():
             duty_info["used_percent"] = round(duty.current_usage_percent(), 2)
             duty_info["remaining_ms"] = duty.remaining_budget_ms()
 
-    node_id_hex = f"!{tx.node_id:08x}" if tx.node_id else ""
+    if tx.node_id:
+        resolved_node_id = tx.node_id
+        node_id_source = "config"
+    elif _tx_service is not None and getattr(_tx_service, "source_node_id", 0):
+        resolved_node_id = _tx_service.source_node_id
+        node_id_source = getattr(_tx_service, "node_id_source", "derived")
+    else:
+        resolved_node_id = 0
+        node_id_source = "unset"
+
+    node_id_hex = f"!{resolved_node_id:08x}" if resolved_node_id else ""
 
     return {
         "radio": {
@@ -99,8 +109,9 @@ async def get_config():
         },
         "transmit": {
             "enabled": tx.enabled,
-            "node_id": tx.node_id,
+            "node_id": resolved_node_id,
             "node_id_hex": node_id_hex,
+            "node_id_source": node_id_source,
             "tx_power_dbm": tx.tx_power_dbm,
             "max_duty_cycle_percent": tx.max_duty_cycle_percent,
             "long_name": tx.long_name,

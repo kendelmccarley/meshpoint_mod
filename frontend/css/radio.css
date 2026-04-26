@@ -119,6 +119,15 @@
 .radio-input--narrow { max-width: 80px; }
 .radio-input--mono { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
 
+.radio-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted, #888);
+    margin-top: 0.35rem;
+    padding-left: 90px;
+    line-height: 1.4;
+    font-style: italic;
+}
+
 .radio-select {
     background: var(--surface-0, #0f0f23);
     border: 1px solid var(--border, #2a2a4a);

@@ -11,28 +11,51 @@ const ROLE_NAMES = {
 };
 
 const HW_NAMES = {
+    0: 'UNSET',
     1: 'TLORA V2', 2: 'TLORA V1', 3: 'TLORA V2 1.6', 4: 'TBEAM',
     5: 'HELTEC V2.0', 6: 'TBEAM V0.7', 7: 'T-ECHO', 8: 'TLORA V1.1.3',
     9: 'RAK4631', 10: 'HELTEC V2.1', 11: 'HELTEC V1', 12: 'LILYGO TBEAM S3',
-    25: 'RAK11200', 26: 'NANO G1', 29: 'STATION G1', 30: 'LORA RELAY V1',
-    32: 'NRF52840DK', 33: 'PPR', 34: 'GENIEBLOCKS', 35: 'NRF52_UNKNOWN',
-    36: 'PORTDUINO', 37: 'ANDROID SIM', 38: 'DIY V1', 39: 'NRF52840_PCA10059',
-    40: 'DR_DEV', 41: 'M5STACK', 42: 'HELTEC V3', 43: 'HELTEC WSL V3',
-    44: 'BETAFPV 2400 TX', 47: 'RAK11310', 48: 'SENSELORA RP2040',
-    49: 'SENSELORA S3', 50: 'CANARYONE', 51: 'RP2040 LORA',
-    52: 'STATION G2', 55: 'HELTEC CAPSULE V3', 56: 'HELTEC VISION V3',
-    57: 'Tracker T1000-E', 58: 'RAK2560', 59: 'HELTEC HT62',
-    60: 'EBYTE ESP32 S3', 61: 'ESP32 S3 PICO', 62: 'CHATTER 2',
-    63: 'HELTEC WIRELESS PAPER', 64: 'HELTEC WIRELESS PAPER V1',
-    65: 'HELTEC WIRELESS TRACKER', 66: 'UNPHONE', 67: 'TD LORAC',
-    68: 'CDEBYTE EORA S3', 69: 'TWC MESH V4', 70: 'NRF52_PROMICRO_DIY',
-    71: 'RADIOMASTER 900 BANDIT NANO', 72: 'HELTEC CAPSULE SENSOR V3',
-    73: 'HELTEC VISION MASTER T190', 74: 'HELTEC VISION MASTER E213',
-    75: 'HELTEC VISION MASTER E290', 76: 'HELTEC MESH NODE T114',
-    77: 'SENSECAP INDICATOR', 78: 'TRACKER T1000-E', 79: 'RAK3172',
-    80: 'WIO E5', 82: 'RADIOMASTER 900 BANDIT', 83: 'ME25LS01 4Y10TD',
-    84: 'RP2040 FEATHER RFM95', 85: 'M5STACK COREBASIC', 86: 'M5STACK CORE2',
-    255: 'Private HW',
+    13: 'RAK11200', 14: 'NANO G1', 15: 'TLORA V2.1 1.8', 16: 'TLORA T3 S3',
+    17: 'NANO G1 EXPLORER', 18: 'NANO G2 ULTRA', 19: 'LORA TYPE',
+    20: 'WIPHONE', 21: 'WIO WM1110', 22: 'RAK2560', 23: 'HELTEC HRU 3601',
+    24: 'HELTEC WIRELESS BRIDGE', 25: 'STATION G1', 26: 'RAK11310',
+    27: 'SENSELORA RP2040', 28: 'SENSELORA S3', 29: 'CANARYONE',
+    30: 'RP2040 LORA', 31: 'STATION G2', 32: 'LORA RELAY V1',
+    33: 'T-ECHO PLUS', 34: 'PPR', 35: 'GENIEBLOCKS', 36: 'NRF52 UNKNOWN',
+    37: 'PORTDUINO', 38: 'ANDROID SIM', 39: 'DIY V1', 40: 'NRF52840 PCA10059',
+    41: 'DR DEV', 42: 'M5STACK', 43: 'HELTEC V3', 44: 'HELTEC WSL V3',
+    45: 'BETAFPV 2400 TX', 46: 'BETAFPV 900 NANO TX', 47: 'RPI PICO',
+    48: 'HELTEC WIRELESS TRACKER', 49: 'HELTEC WIRELESS PAPER',
+    50: 'T-DECK', 51: 'T-WATCH S3', 52: 'PICOMPUTER S3', 53: 'HELTEC HT62',
+    54: 'EBYTE ESP32 S3', 55: 'ESP32 S3 PICO', 56: 'CHATTER 2',
+    57: 'HELTEC WIRELESS PAPER V1.0', 58: 'HELTEC WIRELESS TRACKER V1.0',
+    59: 'UNPHONE', 60: 'TD LORAC', 61: 'CDEBYTE EORA S3', 62: 'TWC MESH V4',
+    63: 'NRF52 PROMICRO DIY', 64: 'RADIOMASTER 900 BANDIT NANO',
+    65: 'HELTEC CAPSULE SENSOR V3', 66: 'HELTEC VISION MASTER T190',
+    67: 'HELTEC VISION MASTER E213', 68: 'HELTEC VISION MASTER E290',
+    69: 'HELTEC MESH NODE T114', 70: 'SENSECAP INDICATOR',
+    71: 'TRACKER T1000-E', 72: 'RAK3172', 73: 'WIO E5',
+    74: 'RADIOMASTER 900 BANDIT', 75: 'ME25LS01 4Y10TD',
+    76: 'RP2040 FEATHER RFM95', 77: 'M5STACK COREBASIC', 78: 'M5STACK CORE2',
+    79: 'RPI PICO2', 80: 'M5STACK CORES3', 81: 'SEEED XIAO S3', 82: 'MS24SF1',
+    83: 'TLORA C6', 84: 'WISMESH TAP', 85: 'ROUTASTIC', 86: 'MESH-TAB',
+    87: 'MESHLINK', 88: 'XIAO NRF52 KIT', 89: 'THINKNODE M1',
+    90: 'THINKNODE M2', 91: 'T-ETH-ELITE', 92: 'HELTEC SENSOR HUB',
+    93: 'MUZI BASE', 94: 'HELTEC MESH POCKET', 95: 'SEEED SOLAR NODE',
+    96: 'NOMADSTAR METEOR PRO', 97: 'CROWPANEL', 98: 'LINK 32',
+    99: 'SEEED WIO TRACKER L1', 100: 'SEEED WIO TRACKER L1 EINK',
+    101: 'MUZI R1 NEO', 102: 'T-DECK PRO', 103: 'T-LORA PAGER',
+    104: 'M5STACK RESERVED', 105: 'WISMESH TAG', 106: 'RAK3312',
+    107: 'THINKNODE M5', 108: 'HELTEC MESH SOLAR', 109: 'T-ECHO LITE',
+    110: 'HELTEC V4', 111: 'M5STACK C6L', 112: 'M5STACK CARDPUTER ADV',
+    113: 'HELTEC WIRELESS TRACKER V2', 114: 'T-WATCH ULTRA',
+    115: 'THINKNODE M3', 116: 'WISMESH TAP V2', 117: 'RAK3401',
+    118: 'RAK6421', 119: 'THINKNODE M4', 120: 'THINKNODE M6',
+    121: 'MESHSTICK 1262', 122: 'TBEAM 1 WATT', 123: 'T5 S3 EPAPER PRO',
+    124: 'TBEAM BPF', 125: 'MINI EPAPER S3', 126: 'TDISPLAY S3 PRO',
+    127: 'HELTEC MESH NODE T096', 128: 'TRACKER T1000-E PRO',
+    129: 'THINKNODE M7',
+    255: 'PRIVATE HW',
 };
 
 const CHART_COLORS = [
@@ -200,12 +223,14 @@ class StatsTab {
             <section class="stats-section" id="ss-network-section" style="display:none">
                 <h2 class="stats-section__title">Network</h2>
                 <div class="stats-row">
-                    <div class="stats-card">
+                    <div class="stats-card" id="ss-roles-card" style="display:none">
                         <div class="stats-card__label">Device Roles</div>
+                        <div class="stats-card__desc">Distribution of node roles seen on the mesh</div>
                         <canvas id="sc-roles"></canvas>
                     </div>
-                    <div class="stats-card">
+                    <div class="stats-card" id="ss-hw-card" style="display:none">
                         <div class="stats-card__label">Hardware Models</div>
+                        <div class="stats-card__desc">Hardware types reported by nodes via NodeInfo</div>
                         <canvas id="sc-hw"></canvas>
                     </div>
                 </div>
@@ -389,26 +414,43 @@ class StatsTab {
     }
 
     _updateRoles(roles) {
-        const section = document.getElementById('ss-network-section');
+        const card = document.getElementById('ss-roles-card');
         const entries = Object.entries(roles);
         if (entries.length === 0) {
-            if (section) section.style.display = 'none';
+            if (card) card.style.display = 'none';
+            this._reconcileNetworkSection();
             return;
         }
-        if (section) section.style.display = '';
+        if (card) card.style.display = '';
         const labels = entries.map(([k]) => ROLE_NAMES[k] || k);
         const values = entries.map(([, v]) => v);
         const total = values.reduce((a, b) => a + b, 0);
         this._renderDoughnut('sc-roles', labels, values, CHART_COLORS, total);
+        this._reconcileNetworkSection();
     }
 
     _updateHwModels(hw) {
+        const card = document.getElementById('ss-hw-card');
         const entries = Object.entries(hw);
-        if (entries.length === 0) return;
+        if (entries.length === 0) {
+            if (card) card.style.display = 'none';
+            this._reconcileNetworkSection();
+            return;
+        }
+        if (card) card.style.display = '';
         const labels = entries.map(([k]) => HW_NAMES[k] || k);
         const values = entries.map(([, v]) => v);
         const total = values.reduce((a, b) => a + b, 0);
         this._renderDoughnut('sc-hw', labels, values, CHART_COLORS, total);
+        this._reconcileNetworkSection();
+    }
+
+    _reconcileNetworkSection() {
+        const section = document.getElementById('ss-network-section');
+        if (!section) return;
+        const rolesVisible = document.getElementById('ss-roles-card')?.style.display !== 'none';
+        const hwVisible = document.getElementById('ss-hw-card')?.style.display !== 'none';
+        section.style.display = rolesVisible || hwVisible ? '' : 'none';
     }
 
     _updateProtoBars(protocols) {

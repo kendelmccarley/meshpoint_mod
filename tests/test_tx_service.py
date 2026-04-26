@@ -82,7 +82,11 @@ class TestResolveNodeId(unittest.TestCase):
 
     def _build(self, *, node_id=None, device_id=None) -> TxService:
         cfg = TransmitConfig(enabled=True, node_id=node_id)
-        return TxService(transmit_config=cfg, device_id=device_id)
+        return TxService(
+            transmit_config=cfg,
+            device_id=device_id,
+            persist_derived_node_id=False,
+        )
 
     def test_config_node_id_wins(self):
         svc = self._build(node_id=0xDEADBEEF, device_id="some-uuid")
@@ -142,6 +146,93 @@ class TestResolveNodeId(unittest.TestCase):
             self.assertNotIn(value, RESERVED_NODE_IDS)
             self.assertGreaterEqual(value, 0)
             self.assertLessEqual(value, 0xFFFFFFFF)
+
+
+class TestNodeIdSourceTracking(unittest.TestCase):
+    """``node_id_source`` reports where the resolved value came from."""
+
+    def _build(self, *, node_id=None, device_id=None) -> TxService:
+        cfg = TransmitConfig(enabled=True, node_id=node_id)
+        return TxService(
+            transmit_config=cfg,
+            device_id=device_id,
+            persist_derived_node_id=False,
+        )
+
+    def test_source_is_config_when_pinned(self):
+        svc = self._build(node_id=0xDEADBEEF, device_id="some-uuid")
+        self.assertEqual(svc.node_id_source, "config")
+
+    def test_source_is_derived_when_only_device_id_set(self):
+        svc = self._build(node_id=None, device_id="some-uuid")
+        self.assertEqual(svc.node_id_source, "derived")
+
+    def test_source_is_random_when_nothing_set(self):
+        svc = self._build(node_id=None, device_id=None)
+        self.assertEqual(svc.node_id_source, "random")
+
+    def test_reserved_config_falls_through_to_derived(self):
+        svc = self._build(node_id=0x00000000, device_id="some-uuid")
+        self.assertEqual(svc.node_id_source, "derived")
+
+
+class TestPersistDerivedNodeId(unittest.TestCase):
+    """First boot with no pinned ID writes the derived value to local.yaml."""
+
+    def test_derived_id_is_persisted_and_source_flips_to_config(self):
+        cfg = TransmitConfig(enabled=True, node_id=None)
+        with patch(
+            "src.config.save_section_to_yaml"
+        ) as mock_save:
+            svc = TxService(
+                transmit_config=cfg,
+                device_id="11111111-2222-3333-4444-555555555555",
+                persist_derived_node_id=True,
+            )
+        mock_save.assert_called_once()
+        section, values = mock_save.call_args.args
+        self.assertEqual(section, "transmit")
+        self.assertEqual(values, {"node_id": svc.source_node_id})
+        self.assertEqual(svc.node_id_source, "config")
+        self.assertEqual(cfg.node_id, svc.source_node_id)
+
+    def test_pinned_id_does_not_trigger_persist(self):
+        cfg = TransmitConfig(enabled=True, node_id=0xDEADBEEF)
+        with patch(
+            "src.config.save_section_to_yaml"
+        ) as mock_save:
+            TxService(
+                transmit_config=cfg,
+                device_id="some-uuid",
+                persist_derived_node_id=True,
+            )
+        mock_save.assert_not_called()
+
+    def test_random_id_does_not_trigger_persist(self):
+        cfg = TransmitConfig(enabled=True, node_id=None)
+        with patch(
+            "src.config.save_section_to_yaml"
+        ) as mock_save:
+            TxService(
+                transmit_config=cfg,
+                device_id=None,
+                persist_derived_node_id=True,
+            )
+        mock_save.assert_not_called()
+
+    def test_persist_failure_is_swallowed_and_source_stays_derived(self):
+        cfg = TransmitConfig(enabled=True, node_id=None)
+        with patch(
+            "src.config.save_section_to_yaml",
+            side_effect=PermissionError("read-only filesystem"),
+        ):
+            svc = TxService(
+                transmit_config=cfg,
+                device_id="some-uuid",
+                persist_derived_node_id=True,
+            )
+        self.assertEqual(svc.node_id_source, "derived")
+        self.assertNotEqual(svc.source_node_id, 0)
 
 
 if __name__ == "__main__":
