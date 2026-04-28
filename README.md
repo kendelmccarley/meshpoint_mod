@@ -13,7 +13,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/KMX415/meshpoint?style=flat&color=yellow)](https://github.com/KMX415/meshpoint/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/KMX415/meshpoint)](https://github.com/KMX415/meshpoint/issues)
 [![Last commit](https://img.shields.io/github/last-commit/KMX415/meshpoint)](https://github.com/KMX415/meshpoint/commits/main)
-[![Version](https://img.shields.io/badge/version-0.6.8-orange.svg)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.0-orange.svg)](docs/CHANGELOG.md)
 
 ### Meshradar Cloud Dashboard
 ![Meshradar Cloud Dashboard](Meshradar414.png)
@@ -285,7 +285,7 @@ AI-assisted contributions are allowed, but contributors should review and unders
 
 ## License
 
-AGPL-3.0: see [LICENSE](LICENSE). Compiled core modules are distributed as pre-built binaries under the same license.
+AGPL-3.0: see [LICENSE](LICENSE). All source code, including HAL bindings, protocol decoders, and packet builders, is published in this repository under the same license.
 
 ---
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+from src._so_compat_check import warn_if_stale_so_files
 from src.analytics.network_mapper import NetworkMapper
 from src.analytics.signal_analyzer import SignalAnalyzer
 from src.analytics.traffic_monitor import TrafficMonitor
@@ -38,6 +39,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         global pipeline, upstream, nodeinfo_broadcaster
+        warn_if_stale_so_files()
         validate_activation(config)
         identity = DeviceIdentity(
             device_id=_stable_device_id(config.device.device_id),

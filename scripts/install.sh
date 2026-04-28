@@ -364,6 +364,18 @@ rsync -a --exclude='venv' \
          --exclude='*.pyc' \
          "${SCRIPT_DIR}/" "$MESHPOINT_DIR/"
 
+# ── 5b. Remove stale compiled core modules from prior installs ─────
+# Releases before 0.7.0 shipped .cpython-*.so files alongside the
+# .py source. Python prefers the .so at import time, so any leftover
+# binary would silently shadow the current source. rsync above does
+# not delete files that are absent from the source tree, so we
+# explicitly clean them up here.
+
+if find "${MESHPOINT_DIR}/src" -name '*.cpython-*.so' -print -quit | grep -q .; then
+    info "Removing stale compiled modules from previous installation..."
+    find "${MESHPOINT_DIR}/src" -name '*.cpython-*.so' -delete
+fi
+
 # ── 6. Python virtual environment ──────────────────────────────────
 
 info "Setting up Python virtual environment..."

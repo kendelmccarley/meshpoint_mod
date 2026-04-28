@@ -1,5 +1,15 @@
 # Changelog
 
+### v0.7.0 (April 28, 2026)
+
+Distribution architecture change: the eleven core SX1302/MeshCore modules are now shipped as Python source files in `src/{hal,capture,decode,transmit}/` instead of pre-compiled `.cpython-*.so` binaries. Behavior is identical to v0.6.8; the change is purely about distribution format. Closes issue #32.
+
+- **Source published.** All eleven modules (HAL wrapper, channel-plan builder, GPS reader, concentrator capture source, SX1262 SPI source, AES-CTR crypto service, Meshtastic and Meshcore decoders, portnum handlers, packet router, Meshtastic packet builder) ship as plain `.py` files under the existing AGPL-3.0 license. Auditability and portability to non-aarch64 hardware become trivial.
+- **Upgrade path uses `install.sh`.** `scripts/install.sh` now removes any `.cpython-*.so` left behind by previous installs before the venv is set up. After `git pull`, run `sudo /opt/meshpoint/scripts/install.sh` followed by `sudo systemctl restart meshpoint`. A `git pull` alone is not sufficient on existing v0.6.x devices: Python's import machinery would prefer the stale binary over the new source.
+- **Boot-time stale-`.so` detection.** A startup WARN fires (and lists the offending files) if compiled binaries somehow re-appear in `src/`. Surfaces in `meshpoint logs` so you can fix the install before behavior freezes at v0.6.x.
+- **RX diagnostic logging.** Every CRC_BAD packet on the SX1302 concentrator now logs a WARNING with the IF chain, SF, BW, RSSI, SNR, size, and a running CRC_BAD counter. Useful for diagnosing rapid-fire packet loss caused by overlapping LoRa transmissions on the same demodulator. Per-packet RX traces are also available via the new `MESHPOINT_DEBUG_RX=1` environment variable (off by default).
+- **Internal:** retired the Cython build pipeline that produced the per-release `.cpython-*.so` artifacts since it's no longer needed.
+
 ### v0.6.8 (April 26, 2026)
 
 Pure-Python follow-up to v0.6.7. No core module recompile required: just `git pull` + `systemctl restart`. Fixes two user-visible regressions surfaced after v0.6.7 shipped, plus the long-standing `PRIVATE_HW` labeling on community maps.

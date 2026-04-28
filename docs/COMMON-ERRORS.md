@@ -56,6 +56,47 @@ will include an automatic first-boot re-provision step to prevent this.
 
 ---
 
+## Upgrades
+
+### Startup WARN: "Stale compiled core modules detected"
+
+**Cause:** Releases before v0.7.0 shipped eleven
+`.cpython-313-aarch64-linux-gnu.so` files alongside the Python source in
+`src/{hal,capture,decode,transmit}/`. v0.7.0 ships pure Python. If those
+binaries survived an upgrade (typically because you ran `git pull` without
+re-running `install.sh`), Python's import machinery will load them instead
+of the new source, freezing the affected modules at the prior version.
+
+**Fix:** Re-run the installer, which removes them automatically:
+
+```
+cd /opt/meshpoint
+sudo /opt/meshpoint/scripts/install.sh
+sudo systemctl restart meshpoint
+```
+
+Or wipe them directly without the installer:
+
+```
+sudo find /opt/meshpoint/src -name '*.cpython-*.so' -delete
+sudo systemctl restart meshpoint
+```
+
+The startup WARN lists every stale file it finds, so you can verify they
+are gone on the next boot.
+
+### `git pull` alone did not pick up v0.7.0 changes
+
+**Cause:** Same root cause as the stale-`.so` warning above. Pulling new
+source without removing the old binaries leaves Python's import machinery
+loading the stale binaries from the previous release.
+
+**Fix:** Always run `sudo /opt/meshpoint/scripts/install.sh` after
+`git pull` when crossing the v0.6.x to v0.7.0 boundary. The installer is
+idempotent and safe to re-run on any release.
+
+---
+
 ## Install and pip
 
 ### `error: externally-managed-environment`
@@ -167,6 +208,26 @@ sudo systemctl restart meshpoint
 ---
 
 ## Concentrator and radio
+
+### Repeated WARN: `RX CRC_BAD if=N sf11 bw=250 ...`
+
+**Cause:** A LoRa packet reached the concentrator demodulator but the CRC
+check failed. This is most often caused by two transmissions overlapping
+in time on the same IF chain (capture-effect failure), or by a very weak
+signal corrupted in transit. A few CRC_BAD packets per hour is normal in
+busy mesh areas; a sustained stream every few seconds suggests RF collision
+congestion or interference.
+
+**Diagnostic:** Set `MESHPOINT_DEBUG_RX=1` in the systemd unit
+(`Environment=MESHPOINT_DEBUG_RX=1`) and restart the service. Every
+successful RX will then log at INFO with the same fields, letting you
+compare healthy versus corrupted traffic side-by-side. Disable by removing
+the env var and restarting.
+
+**Fix:** Usually no action is needed. To reduce the CRC_BAD rate, move the
+antenna away from RF noise sources or run on a less-congested channel.
+The running `total CRC_BAD` counter in the warning resets on every service
+restart.
 
 ### `Chip version 0x00`
 
