@@ -25,6 +25,7 @@ from src.transmit.nodeinfo_broadcaster import (
     clamp_interval_minutes,
 )
 from src.transmit.tx_service import TxService
+from src.version import __version__
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Meshpoint",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
     )
 

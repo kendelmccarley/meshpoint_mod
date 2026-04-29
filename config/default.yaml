@@ -83,6 +83,12 @@ mqtt:
   port: 1883
   username: "meshdev"
   password: "large4cats"
+  # Topic format is "<topic_root>/<region>/2/e/<channel>/<gateway_id>".
+  # `topic_root` and `region` are concatenated with a slash, so leave
+  # `topic_root` as "msh" and use `region` for the regional segment
+  # (the Meshtastic spec). Setting topic_root to "msh/US/FL" while
+  # leaving region="US" doubles the region: msh/US/FL/US/2/e/...
+  # `mqtt.region` is independent of `radio.region`: defaults to "US".
   topic_root: "msh"
   region: "US"
   publish_channels:

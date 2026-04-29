@@ -158,6 +158,44 @@ mqtt:
 **Never add private channel names when publishing to a public broker.**
 That is the entire point of Gate 2.
 
+### Topic format
+
+Published topics are built as:
+
+```
+<topic_root>/<region>/2/e/<channel_name>/<gateway_id>
+```
+
+The two parts you control are `mqtt.topic_root` (default `"msh"`) and
+`mqtt.region` (default `"US"`). The Meshpoint concatenates them with
+a slash, so a default install publishes to
+`msh/US/2/e/LongFast/!XXXXXXXX`.
+
+A common mistake when coming from the Meshtastic Android app is to
+write the regional path into `topic_root` itself:
+
+```yaml
+mqtt:
+  topic_root: "msh/US/FL"   # wrong: doubles the region
+  region: "US"              # default
+# Result: msh/US/FL/US/2/e/LongFast/!XXXXXXXX
+```
+
+The right form is to keep `topic_root` as `"msh"` and put any regional
+segment in `mqtt.region`:
+
+```yaml
+mqtt:
+  topic_root: "msh"
+  region: "US/FL"           # state or sub-region in the right slot
+# Result: msh/US/FL/2/e/LongFast/!XXXXXXXX
+```
+
+`mqtt.region` is intentionally independent of `radio.region` because
+the regional MQTT prefix (e.g., `US/FL`, `EU_868/DE`) is a community
+naming convention, not a regulatory band. A US Meshpoint can still
+publish under `EU` if it serves an EU community broker, and vice versa.
+
 ### Location precision
 
 Choose how much GPS detail leaves the device via MQTT:

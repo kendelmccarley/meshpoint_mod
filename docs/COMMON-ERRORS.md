@@ -95,6 +95,20 @@ loading the stale binaries from the previous release.
 `git pull` when crossing the v0.6.x to v0.7.0 boundary. The installer is
 idempotent and safe to re-run on any release.
 
+### `install.sh` told me to reboot after an upgrade. Do I have to?
+
+**Pre-v0.7.1 only.** The install.sh on v0.7.0 always printed the
+fresh-install banner, including "Reboot to apply SPI/UART changes" and
+"Run sudo meshpoint setup", even when you were just upgrading. The
+reboot is **not required** on an upgrade because SPI/UART/I2C are
+already configured from the original install, and the wizard step
+isn't needed because `local.yaml` already has your config.
+
+**Fix:** A simple `sudo systemctl restart meshpoint` is all you need
+after `sudo /opt/meshpoint/scripts/install.sh` completes. v0.7.1 and
+later detect the upgrade case automatically and print the right
+banner, so this only bites users running install.sh on v0.7.0 once.
+
 ---
 
 ## Install and pip
