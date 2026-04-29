@@ -89,8 +89,12 @@ and MUST NOT redeclare or rename them.
 
 | Token | Value | Usage |
 |---|---|---|
-| `--glow-cyan` | `0 0 8px rgba(6, 182, 212, 0.3)` | Cyan glow halo |
+| `--glow-cyan` | `0 0 8px rgba(6, 182, 212, 0.3)` | Cyan glow halo (focus, active accents) |
+| `--glow-green` | `0 0 8px rgba(0, 229, 160, 0.4)` | Green glow (healthy / OK status lamps) |
+| `--glow-amber` | `0 0 8px rgba(245, 158, 11, 0.4)` | Amber glow (warning / caution status) |
+| `--glow-red` | `0 0 8px rgba(239, 68, 68, 0.4)` | Red glow (error / paused status) |
 | `--radius` | `8px` | Default corner radius for cards, panels, inputs |
+| `--radius-sm` | `4px` | Small inputs, chips, narrow buttons |
 
 ---
 
@@ -304,6 +308,87 @@ namespace in new code.** All new CSS uses the canonical
 future cleanup PR will refactor the legacy files to the canonical
 tokens; that work is intentionally not bundled with regular UI
 changes.
+
+---
+
+## Personality
+
+Tokens, BEM, and shell layout get a contributor to "correct."
+Personality is what gets a contributor to "this is the kind of
+software I want to use." Spend time on it.
+
+The principle: **details that cost almost nothing in code can
+make a user feel like the product is exceptional.** Fifty lines
+of HTML/CSS/JS, no new dependencies, no new tokens, no shell
+changes. Add them on top of working functionality, not in place
+of it.
+
+What this looks like in practice:
+
+- **Boot sequences with status checkmarks.** When a panel,
+  drawer, or new tab opens for the first time in a session,
+  consider a 200ms staged reveal: `Initializing...` → `OK` →
+  `Connected` → ready state. Pure visual; no real work happens.
+  Sells the impression of a serious system coming online.
+- **ASCII or SVG art accents in non-critical surfaces.** A small
+  ASCII banner at the top of a logs view, a glyph in a CLI-style
+  panel header, a topology micro-rendering in an empty state. Not
+  in the primary data view: in the chrome around it. Always
+  monospace, always cyan or muted. Never animated to distraction.
+- **Status pills that look like industrial gauges.** The auth
+  page's identity strip and the wardriving plan's GPS / battery /
+  connectivity pills are this pattern. Treat status as a
+  first-class visual citizen, not a "(connected)" string.
+- **Footer keyboard hints.** When a surface accepts keyboard
+  input, list the bindings in a slim 11px monospace footer:
+  `↑↓ History · Tab · Esc`. Costs nothing, signals a tool built
+  by people who care about keyboard users.
+- **Live, low-stakes telemetry rendered in chrome.** A noise
+  floor sparkline in a side rail, a packets-per-minute mini
+  chart above a table header, a heartbeat dot pulsing in the top
+  bar when WebSocket is healthy. The data already exists; the
+  cost is one Chart.js call and a 60px slot in the layout.
+- **Hero animations that earn their keep.** The auth-radar live
+  sweep is this pattern: it does no real work, but it makes the
+  login screen feel inhabited. Limit one hero animation per
+  surface; never animate the primary data view.
+- **Micro-glow on accent elements.** The `--glow-cyan` token
+  exists for this; use it on focused inputs, primary buttons in
+  hover state, and active-tab indicators. Never on text or on
+  surfaces wider than a button.
+- **Console-style operator prompts.** `admin@meshpoint:~$` in a
+  terminal panel, `RX: 1,247 packets · 0 errors` in a status
+  strip, `LongFast · 906.875 MHz · SF11 BW250` in a radio
+  header. Speak the language of the operator, not the language
+  of the form field.
+
+What this is **not**:
+
+- It is not "make it look like a screenshot from another
+  product." Every personality detail in Meshpoint is
+  Meshpoint-original, framed as ours, never with a comparative
+  citation in code, docs, commits, release blurbs, issues, or
+  PRs. The same standing rule that applies to brand voice
+  applies here: external products may inform what you ship, but
+  no external product is named or credited in any artifact that
+  reaches the public repo.
+- It is not "add three animations to every screen." One
+  intentional detail per surface is the bar. Five is noise.
+- It is not "a reason to introduce a new font, palette, or
+  shell." Personality lives inside the existing design system.
+  If a personality idea requires a new token, the personality
+  idea is wrong, not the token list.
+- It is not "polish that comes after shipping." Every new
+  feature ships with at least one personality detail considered
+  during design, not retrofitted later. The auth-radar mockup,
+  the wardriving Field Mode tab spec, and the v0.7.3 update
+  drawer all designed personality in from the start.
+
+The bar to apply: when adding a new screen, drawer, tab, or
+major feature, ask "what's the cheap personality detail here
+that costs me 50 lines and makes the user feel like this thing
+was built with care?" If the answer is "nothing, it just shows
+data," you have not finished the design.
 
 ---
 

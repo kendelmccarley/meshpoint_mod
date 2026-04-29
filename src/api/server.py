@@ -11,7 +11,7 @@ from src._so_compat_check import warn_if_stale_so_files
 from src.analytics.network_mapper import NetworkMapper
 from src.analytics.signal_analyzer import SignalAnalyzer
 from src.analytics.traffic_monitor import TrafficMonitor
-from src.api.routes import analytics, config_routes, device, messages, nodes, packets, stats_routes, system_metrics, telemetry, update_check
+from src.api.routes import analytics, config_routes, device, messages, nodeinfo_routes, nodes, packets, stats_routes, system_metrics, telemetry, update_check
 from src.api.upstream_client import UpstreamClient
 from src.api.websocket_manager import WebSocketManager
 from src.config import AppConfig, load_config, validate_activation
@@ -20,7 +20,10 @@ from src.log_format import print_banner, print_packet, setup_logging
 from src.models.device_identity import DeviceIdentity, _stable_device_id
 from src.models.packet import Packet
 from src.storage.message_repository import MessageRepository
-from src.transmit.nodeinfo_broadcaster import NodeInfoBroadcaster
+from src.transmit.nodeinfo_broadcaster import (
+    NodeInfoBroadcaster,
+    clamp_interval_minutes,
+)
 from src.transmit.tx_service import TxService
 
 setup_logging()
@@ -109,6 +112,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.include_router(telemetry.router)
     app.include_router(update_check.router)
     app.include_router(messages.router)
+    app.include_router(nodeinfo_routes.router)
     app.include_router(config_routes.router)
     app.include_router(stats_routes.router)
 
@@ -248,7 +252,9 @@ def _build_nodeinfo_broadcaster(
     """Schedule periodic NodeInfo broadcasts when Meshtastic TX is live.
 
     Returns ``None`` when transmit is disabled, the TX service is
-    unavailable, or the radio backend isn't ready, so callers can skip
+    unavailable, the radio backend isn't ready, or the user has
+    opted out of NodeInfo broadcasts via
+    ``transmit.nodeinfo.enabled: false``, so callers can skip
     start/stop without a guard.
     """
     if tx_service is None or not config.transmit.enabled:
@@ -259,10 +265,23 @@ def _build_nodeinfo_broadcaster(
             "not available"
         )
         return None
+
+    ni = config.transmit.nodeinfo
+    interval_minutes = clamp_interval_minutes(ni.interval_minutes)
+    if interval_minutes == 0:
+        logger.info(
+            "NodeInfo broadcaster disabled in config "
+            "(transmit.nodeinfo.interval_minutes=0)"
+        )
+        return None
+
+    startup_delay = max(0, ni.startup_delay_seconds)
     return NodeInfoBroadcaster(
         tx_service=tx_service,
         long_name=config.transmit.long_name,
         short_name=config.transmit.short_name,
+        startup_delay_seconds=startup_delay,
+        interval_seconds=interval_minutes * 60,
     )
 
 
@@ -679,6 +698,10 @@ def _init_routes(
     )
 
     crypto = coord._crypto if hasattr(coord, "_crypto") else None
+    nodeinfo_routes.init_routes(
+        config=config,
+        nodeinfo_broadcaster=nodeinfo_broadcaster,
+    )
     config_routes.init_routes(
         config=config,
         crypto=crypto,

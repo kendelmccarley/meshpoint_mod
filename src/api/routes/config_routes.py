@@ -14,6 +14,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from src.api.routes import nodeinfo_routes
 from src.config import AppConfig, save_section_to_yaml
 from src.radio.presets import (
     REGION_DEFAULTS,
@@ -118,6 +119,7 @@ async def get_config():
             "short_name": tx.short_name,
             "hop_limit": tx.hop_limit,
         },
+        "nodeinfo": nodeinfo_routes.build_nodeinfo_status(tx.nodeinfo),
         "channels": channels,
         "meshcore": mc_status,
         "duty_cycle": duty_info,

@@ -116,6 +116,23 @@ class MqttConfig:
 
 
 @dataclass
+class NodeInfoConfig:
+    """Periodic NodeInfo broadcast settings.
+
+    Identity (long_name, short_name, hw_model) is broadcast on the
+    primary channel so receiving Meshtastic clients build a stable
+    contact entry.
+
+    Set ``interval_minutes`` to ``0`` to disable periodic broadcasts
+    while keeping TX enabled (DMs and replies still work). Otherwise
+    valid range is 5..1440 (5 min to 24 hr).
+    """
+
+    interval_minutes: int = 180
+    startup_delay_seconds: int = 60
+
+
+@dataclass
 class TransmitConfig:
     """Native LoRa transmission settings.
 
@@ -131,6 +148,7 @@ class TransmitConfig:
     long_name: str = "Mesh Point"
     short_name: str = "MPNT"
     hop_limit: int = 3
+    nodeinfo: NodeInfoConfig = field(default_factory=NodeInfoConfig)
 
 
 @dataclass

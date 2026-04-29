@@ -1,7 +1,10 @@
 /**
- * Channel configuration component for the Radio tab.
- * Renders a table of Meshtastic channels with name, PSK,
- * computed hash preview, and enable/disable toggles.
+ * Channel configuration card for the Radio tab.
+ *
+ * Renders the Meshtastic channel table (name, PSK, computed hash,
+ * enabled toggle). The table itself is intentionally boring per the
+ * v0.7.1 redesign scope -- structure and behavior unchanged from
+ * v0.6.x, only restyled to match the surrounding cards.
  */
 class RadioChannels {
     constructor(containerEl) {
@@ -13,21 +16,38 @@ class RadioChannels {
         this._channels = channels || [];
 
         const rows = this._channels.map((ch, i) => `
-            <tr class="radio-ch__row" data-index="${i}">
-                <td class="radio-ch__idx">${ch.index}</td>
-                <td><input class="radio-input radio-ch__name" value="${this._esc(ch.name || '')}" placeholder="Channel name" data-field="name"></td>
-                <td class="radio-ch__psk-cell">
-                    <input class="radio-input radio-input--mono radio-ch__psk" type="password" value="${this._esc(ch.psk_b64 || '')}" placeholder="Base64 PSK" data-field="psk_b64">
-                    <button class="radio-ch__reveal" data-index="${i}" title="Show/hide key">&#128065;</button>
+            <tr class="ch-table__row" data-index="${i}">
+                <td class="ch-table__idx">${ch.index}</td>
+                <td>
+                    <input class="ch-table__name-input" data-field="name"
+                           value="${this._esc(ch.name || '')}"
+                           placeholder="Channel name" />
                 </td>
-                <td class="radio-ch__hash radio-value--mono">${ch.hash || '--'}</td>
-                <td><input type="checkbox" class="radio-ch__enabled" data-field="enabled" ${ch.enabled ? 'checked' : ''}></td>
+                <td class="ch-table__psk-cell">
+                    <input class="ch-table__name-input" data-field="psk_b64"
+                           type="password"
+                           value="${this._esc(ch.psk_b64 || '')}"
+                           placeholder="Base64 PSK" />
+                    <button class="ch-table__reveal" data-index="${i}"
+                            title="Show/hide key">&#128065;</button>
+                </td>
+                <td class="ch-table__hash">${ch.hash || '--'}</td>
+                <td>
+                    <input type="checkbox" data-field="enabled"
+                           ${ch.enabled ? 'checked' : ''} />
+                </td>
             </tr>
         `).join('');
 
+        this._container.classList.add('r-card');
         this._container.innerHTML = `
-            <h3 class="radio-card__title">Channels</h3>
-            <table class="radio-ch__table">
+            <div class="r-card__header">
+                <h3 class="r-card__title">Channels</h3>
+                <span class="r-card__subtitle">
+                    ${this._channels.length} configured
+                </span>
+            </div>
+            <table class="ch-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -37,104 +57,91 @@ class RadioChannels {
                         <th>On</th>
                     </tr>
                 </thead>
-                <tbody id="radio-ch-body">${rows}</tbody>
+                <tbody id="r-ch-body">${rows}</tbody>
             </table>
-            <div class="radio-ch__actions">
-                <button class="radio-save-btn radio-save-btn--secondary" id="radio-ch-add">+ Add Channel</button>
-                <button class="radio-save-btn" id="radio-ch-save">Save Channels</button>
+            <div class="r-card__actions">
+                <button class="r-btn r-btn--secondary" id="r-ch-add">
+                    + Add Channel
+                </button>
+                <button class="r-btn r-btn--primary" id="r-ch-save">
+                    Save Channels
+                </button>
             </div>
         `;
 
-        this._container.querySelectorAll('.radio-ch__reveal').forEach(btn => {
+        this._wireRowHandlers(this._container);
+        document.getElementById('r-ch-add').addEventListener(
+            'click', () => this._addEmptyRow(),
+        );
+        document.getElementById('r-ch-save').addEventListener(
+            'click', () => this._save(),
+        );
+    }
+
+    _wireRowHandlers(scope) {
+        scope.querySelectorAll('.ch-table__reveal').forEach((btn) => {
             btn.addEventListener('click', () => {
                 const row = btn.closest('tr');
-                const input = row.querySelector('.radio-ch__psk');
+                const input = row.querySelector('[data-field="psk_b64"]');
                 input.type = input.type === 'password' ? 'text' : 'password';
             });
         });
 
-        this._container.querySelectorAll('.radio-ch__psk').forEach(input => {
-            input.addEventListener('input', () => {
-                const row = input.closest('tr');
-                const hashCell = row.querySelector('.radio-ch__hash');
-                const nameInput = row.querySelector('.radio-ch__name');
-                hashCell.textContent = this._computeHash(
-                    nameInput.value, input.value
-                );
-            });
+        scope.querySelectorAll('[data-field="psk_b64"]').forEach((input) => {
+            input.addEventListener('input', () => this._refreshHash(input.closest('tr')));
         });
 
-        this._container.querySelectorAll('.radio-ch__name').forEach(input => {
-            input.addEventListener('input', () => {
-                const row = input.closest('tr');
-                const hashCell = row.querySelector('.radio-ch__hash');
-                const pskInput = row.querySelector('.radio-ch__psk');
-                hashCell.textContent = this._computeHash(
-                    input.value, pskInput.value
-                );
-            });
-        });
-
-        document.getElementById('radio-ch-add').addEventListener('click', () => {
-            this._addEmptyRow();
-        });
-
-        document.getElementById('radio-ch-save').addEventListener('click', async () => {
-            await this._save();
+        scope.querySelectorAll('[data-field="name"]').forEach((input) => {
+            input.addEventListener('input', () => this._refreshHash(input.closest('tr')));
         });
     }
 
+    _refreshHash(row) {
+        const name = row.querySelector('[data-field="name"]').value;
+        const psk = row.querySelector('[data-field="psk_b64"]').value;
+        row.querySelector('.ch-table__hash').textContent = this._computeHash(name, psk);
+    }
+
     _addEmptyRow() {
-        const tbody = document.getElementById('radio-ch-body');
+        const tbody = document.getElementById('r-ch-body');
         const newIndex = tbody.querySelectorAll('tr').length;
         const tr = document.createElement('tr');
-        tr.className = 'radio-ch__row';
+        tr.className = 'ch-table__row';
         tr.dataset.index = newIndex;
         tr.innerHTML = `
-            <td class="radio-ch__idx">${newIndex}</td>
-            <td><input class="radio-input radio-ch__name" value="" placeholder="Channel name" data-field="name"></td>
-            <td class="radio-ch__psk-cell">
-                <input class="radio-input radio-input--mono radio-ch__psk" type="password" value="" placeholder="Base64 PSK" data-field="psk_b64">
-                <button class="radio-ch__reveal" title="Show/hide key">&#128065;</button>
+            <td class="ch-table__idx">${newIndex}</td>
+            <td>
+                <input class="ch-table__name-input" data-field="name"
+                       value="" placeholder="Channel name" />
             </td>
-            <td class="radio-ch__hash radio-value--mono">--</td>
-            <td><input type="checkbox" class="radio-ch__enabled" data-field="enabled" checked></td>
+            <td class="ch-table__psk-cell">
+                <input class="ch-table__name-input" data-field="psk_b64"
+                       type="password" value="" placeholder="Base64 PSK" />
+                <button class="ch-table__reveal"
+                        title="Show/hide key">&#128065;</button>
+            </td>
+            <td class="ch-table__hash">--</td>
+            <td>
+                <input type="checkbox" data-field="enabled" checked />
+            </td>
         `;
-
-        tr.querySelector('.radio-ch__reveal').addEventListener('click', () => {
-            const input = tr.querySelector('.radio-ch__psk');
-            input.type = input.type === 'password' ? 'text' : 'password';
-        });
-
-        const pskInput = tr.querySelector('.radio-ch__psk');
-        const nameInput = tr.querySelector('.radio-ch__name');
-        const hashCell = tr.querySelector('.radio-ch__hash');
-
-        pskInput.addEventListener('input', () => {
-            hashCell.textContent = this._computeHash(nameInput.value, pskInput.value);
-        });
-        nameInput.addEventListener('input', () => {
-            hashCell.textContent = this._computeHash(nameInput.value, pskInput.value);
-        });
-
+        this._wireRowHandlers(tr);
         tbody.appendChild(tr);
     }
 
     async _save() {
-        const rows = document.querySelectorAll('#radio-ch-body .radio-ch__row');
+        const rows = document.querySelectorAll('#r-ch-body tr');
         const channels = [];
 
         rows.forEach((row, i) => {
-            const name = row.querySelector('.radio-ch__name').value.trim();
-            const psk = row.querySelector('.radio-ch__psk').value.trim();
-            const enabled = row.querySelector('.radio-ch__enabled').checked;
+            const name = row.querySelector('[data-field="name"]').value.trim();
+            const psk = row.querySelector('[data-field="psk_b64"]').value.trim();
+            const enabled = row.querySelector('[data-field="enabled"]').checked;
             if (i === 0) {
                 channels.push({ index: 0, name, psk_b64: psk, enabled });
                 return;
             }
-            if (name || psk) {
-                channels.push({ name, psk_b64: psk, enabled });
-            }
+            if (name || psk) channels.push({ name, psk_b64: psk, enabled });
         });
 
         try {
@@ -144,13 +151,13 @@ class RadioChannels {
                 body: JSON.stringify({ channels }),
             });
             if (res.ok) {
-                this._showToast('Channels saved');
+                this._toast('Channels saved');
             } else {
                 const err = await res.json().catch(() => ({}));
-                this._showToast(`Error: ${err.detail || res.status}`);
+                this._toast(`Error: ${err.detail || res.status}`);
             }
         } catch (e) {
-            this._showToast('Save failed');
+            this._toast(`Save failed: ${e.message}`);
         }
     }
 
@@ -173,7 +180,10 @@ class RadioChannels {
         if (raw.length === 0) return '\0'.repeat(16);
         if (raw.length === 16 || raw.length === 32) return raw;
         if (raw.length === 1) {
-            const DEFAULT_PSK = [0xD4,0xF1,0xBB,0x3A,0x20,0x29,0x07,0x59,0xF0,0xBC,0xFF,0xAB,0xCF,0x4E,0x69,0x01];
+            const DEFAULT_PSK = [
+                0xD4, 0xF1, 0xBB, 0x3A, 0x20, 0x29, 0x07, 0x59,
+                0xF0, 0xBC, 0xFF, 0xAB, 0xCF, 0x4E, 0x69, 0x01,
+            ];
             const idx = raw.charCodeAt(0);
             if (idx === 0) return '\0'.repeat(16);
             const key = [...DEFAULT_PSK];
@@ -183,17 +193,17 @@ class RadioChannels {
         return (raw + '\0'.repeat(16)).slice(0, 16);
     }
 
-    _showToast(msg) {
-        let toast = document.getElementById('radio-toast');
+    _toast(msg) {
+        let toast = document.getElementById('r-toast');
         if (!toast) {
             toast = document.createElement('div');
-            toast.id = 'radio-toast';
-            toast.className = 'radio-toast';
+            toast.id = 'r-toast';
+            toast.className = 'r-toast';
             document.body.appendChild(toast);
         }
         toast.textContent = msg;
-        toast.classList.add('radio-toast--visible');
-        setTimeout(() => toast.classList.remove('radio-toast--visible'), 2500);
+        toast.classList.add('r-toast--visible');
+        setTimeout(() => toast.classList.remove('r-toast--visible'), 2500);
     }
 
     _esc(str) {
