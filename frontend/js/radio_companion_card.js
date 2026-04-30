@@ -95,15 +95,22 @@ class RadioCompanionCard {
         const advert = this._root.querySelector('#r-mc-advert');
         if (advert) {
             advert.addEventListener('click', async () => {
-                const ok = await this._api.post(
-                    '/api/messages/send',
-                    {
-                        text: '',
-                        destination: 'advert',
-                        protocol: 'meshcore',
-                    },
-                );
-                this._api.toast(ok ? 'Advert sent' : 'Advert failed');
+                advert.disabled = true;
+                try {
+                    const result = await this._api.post(
+                        '/api/messages/advert',
+                        {},
+                    );
+                    if (result && result.success) {
+                        this._api.toast('Advert sent');
+                    } else if (result) {
+                        this._api.toast(
+                            'Advert failed' + (result.error ? `: ${result.error}` : ''),
+                        );
+                    }
+                } finally {
+                    advert.disabled = false;
+                }
             });
         }
         const refresh = this._root.querySelector('#r-mc-refresh');

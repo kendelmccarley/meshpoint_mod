@@ -99,6 +99,26 @@ async def send_message(req: SendRequest):
     }
 
 
+@router.post("/advert")
+async def send_meshcore_advert(flood: bool = False):
+    """Broadcast a MeshCore advertisement from the USB companion.
+
+    Independent of /send so it bypasses the empty-text validation
+    and routes to the dedicated MeshCore advert path instead of
+    the text-message TX pipeline.
+    """
+    if _meshcore_tx is None or not _meshcore_tx.connected:
+        raise HTTPException(503, "MeshCore companion not connected")
+    result = await _meshcore_tx.send_advert(flood=flood)
+    if not result.success:
+        logger.warning("Dashboard MeshCore advert failed: %s", result.error)
+    return {
+        "success": result.success,
+        "error": result.error,
+        "event_type": getattr(result, "event_type", None),
+    }
+
+
 @router.get("/conversations")
 async def get_conversations(include_overheard: bool = False):
     if _message_repo is None:
