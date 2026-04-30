@@ -312,13 +312,14 @@
 .r-btn--has-pending::after {
     content: '';
     position: absolute;
-    top: 5px;
-    right: 7px;
-    width: 6px;
-    height: 6px;
+    top: -3px;
+    right: -3px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    background: var(--accent-cyan);
-    box-shadow: 0 0 8px var(--accent-cyan);
+    background: var(--accent-amber);
+    border: 1.5px solid var(--bg-primary);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
     animation: r-btn-pending-pulse 1.5s ease-in-out infinite;
 }
 
